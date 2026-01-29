@@ -1,0 +1,43 @@
+Project: JoePARDY!
+
+## Overview
+JoePARDY! is a professional-grade, JackBox-style trivia platform featuring a modular, test-driven (TDD), and stateless-ready architecture using the Repository pattern. The core gameplay loop is functional, including backend logic, a real-time event system, and initial frontend screens.
+
+## Global Goals
+- Build a robust, scalable trivia platform.
+- Ensure modularity and maintainability.
+- Implement a test-driven development approach.
+- Design for statelessness to facilitate future scaling (e.g., Redis migration).
+- Provide a smooth and engaging user experience for both hosts and players.
+
+## Architectural Decisions and Key Technical Concepts
+- **Command/Event Pattern**: Client inputs are prefixed with `CMD_` (e.g., `CMD_START_GAME`), and server broadcasts are prefixed with `EVT_` (e.g., `EVT_NEXT_QUESTION`). This clear separation prevents infinite feedback loops and decouples client-server communication.
+- **Repository Pattern**: `InMemoryGameRepository` is used for managing game state, designed to be async-ready for future migration to distributed state stores like Redis.
+- **Provider Pattern**: `OpenTDBProvider` handles external API interactions, fetching trivia data from Open Trivia Database and mapping it to our internal `TriviaQuestion` model.
+- **Event Bus**: `PlatformEventBus` acts as a centralized communication hub, enabling decoupled communication between various core components of the application.
+- **Real-time Communication**: Socket.io is used to facilitate real-time interactions, particularly for mobile-to-TV communication during gameplay.
+- **Player Roles**: A `role` property (`"host"` or `"player"`) is assigned to participants joining a room, allowing for clear distinction between display-only hosts and active players in game logic.
+- **Score Calculation**: Scores are calculated on the server. Client-side displays (like potential score) are for immediate feedback, but final scores are confirmed by the server to prevent discrepancies. Scores are accumulated in the player's total only when the round results are revealed, allowing for future implementation of answer changes.
+- **Source Control**: Git is used for version control, with a `.gitignore` to exclude unnecessary files like `node_modules`.
+- **HTML Entity Decoding**: The `he` library is used for robust decoding of HTML entities in trivia questions and answers.
+- **Coding Style**: Consistent use of double quotes (`"`) for strings in JavaScript files.
+
+## Solved Problems
+- **Death Loop Fix**: Resolved an infinite recursion/event loop by separating internal commands from broadcast events and implementing a manual `CMD_REQUEST_NEXT` trigger between rounds.
+- **Host Sync Fix**: Ensured the Host screen officially joins the socket room to receive broadcasts.
+- **Robust HTML Entity Decoding**: Replaced manual `replace()` calls with the `he` library to properly decode all standard and numeric HTML entities, resolving issues with unreadable characters in questions.
+- **Question on Phone Interface**: Implemented logic to display the current question text on the player's phone screen for improved accessibility.
+- **"Get Ready" Cinematic Phase (5s)**: Introduced a 5-second preparation phase before each question, showing category, question number, and a countdown.
+- **Reading Buffer (2s)**: Implemented a configurable 2-second grace period at the start of each question where points do not decay, allowing players time to read before the timer affects scoring.
+- **Live Question Value Display**: Added a real-time display on the Host screen showing the potential points a player could earn for the current question, dynamically updating as time elapses.
+- **Unified Results & Get Ready Screen (15s)**: Merged the post-question scoreboard and pre-question "Get Ready" phases into a single, unified screen with a configurable 15-second countdown. This includes filtering out "HOST" from the player list displayed on the scoreboard, based on player roles.
+- **Client Answer Highlighting & Potential Score Display**: Implemented visual feedback for player answers, including a yellow highlight on selection, and server-confirmed "LOCKED FOR: +XXX" (potential points) display. The client also now shows the actual score for the round (`SCORE: +XXX`) after results are revealed.
+- **Score Calculation Accuracy**: Fixed a bug where `ScoreCalculator.js` was calculating points even for incorrect answers. Scores are now only accumulated to a player's total after the question results are revealed.
+
+## Pending Tasks and Next Steps
+- **Task 1: Configure Git for Line Ending Normalization**: Configure Git globally to ensure consistent line endings across the project (`git config --global core.autocrlf input`).
+- **Task 2: Fix the git repository -- when we originally set this up, it checked in my whole desktop, which included a bunch of different projects.  The root of the project should be the trivia-platform folder on my desktop, not the whole desktop.
+- **Task 3: Scoreboard Round Score Display**: Enhance the scoreboard to show both current round score and total overall score for each player.
+- **Task 4: Final Winner Screen & 10-Question Cycle**: Implement a final winner screen at the end of a 10-question game cycle.
+- **Task 5: Persistence & Reconnection**: Implement browser refresh resilience by saving room code and player state in `localStorage`.
+

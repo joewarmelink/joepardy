@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Platform</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-blue: #060ce9;
+            --jeopardy-yellow: #ffcc00;
+            --white: #ffffff;
+            --error: #ff4d4d;
+        }
+
+        body {
+            font-family: 'Arial Black', Gadget, sans-serif;
+            background-color: var(--bg-blue);
+            color: var(--white);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            color: var(--jeopardy-yellow);
+            font-size: 3rem;
+            text-shadow: 4px 4px #000;
+            margin-bottom: 40px;
+        }
+
+        /* Lobby / Entry UI */
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            border: 4px solid var(--jeopardy-yellow);
+        }
+
+        input {
+            font-size: 1.5rem;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            width: 80%;
+            text-transform: uppercase;
+        }
+
+        button {
+            background-color: var(--jeopardy-yellow);
+            color: var(--bg-blue);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* Host Screen UI */
+        #host-screen { display: none; }
+        #room-code-display { font-size: 5rem; color: var(--jeopardy-yellow); }
+        .player-list { list-style: none; padding: 0; font-size: 1.5rem; }
+
+        /* Question UI */
+        #question-view { display: none; }
+        #question-text { font-size: 2rem; margin-bottom: 30px; }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .option-btn {
+            background: var(--bg-blue);
+            border: 4px solid var(--white);
+            color: var(--white);
+            padding: 20px;
+            font-size: 1.2rem;
+        }
+        .option-btn.eliminated {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        .option-btn.selected {
+            background-color: var(--jeopardy-yellow) !important;
+            color: var(--bg-blue) !important;
+            border-color: var(--white) !important;
+        }
+
+        .option-btn.correct {
+            background-color: #28a745 !important;
+            color: var(--white) !important;
+            border-color: var(--jeopardy-yellow) !important;
+        }
+
+        .option-btn.incorrect {
+            background-color: #dc3545 !important;
+            color: var(--white) !important;
+            border-color: var(--white) !important;
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 20px;
+            background: #444;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #timer-progress {
+            width: 100%;
+            height: 100%;
+            background: var(--jeopardy-yellow);
+            transition: width 0.1s linear;
+        }
+
+        /* Player Screen UI */
+        #player-screen { display: none; }
+        #player-status { font-size: 1.2rem; margin-bottom: 20px; }
+
+        .footer {
+            margin-top: 50px;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+        .footer a { color: var(--white); text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JoePARDY!</h1>
+
+        <!-- 1. Join Screen (Default) -->
+        <div id="join-screen" class="card">
+            <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="12">
+            <input type="text" id="room-code-input" placeholder="ROOM CODE" maxlength="4">
+            <br>
+            <button onclick="joinRoom()">JOIN GAME</button>
+            <div class="footer">
+                Want to host? <a onclick="setupHost()">Start a new room on this screen</a>
+            </div>
+        </div>
+
+        <!-- 2. Host Screen (TV) -->
+        <div id="host-screen">
+            <div class="card">
+                <h2>ROOM CODE</h2>
+                <div id="room-code-display">----</div>
+                <p>Waiting for players...</p>
+                <ul id="host-player-list" class="player-list"></ul>
+                <button id="start-btn" onclick="startGame()" style="display:none">START GAME</button>
+            </div>
+        </div>
+
+        <!-- 3. Player Screen (Phone) -->
+        <div id="player-screen">
+            <div id="player-status">Waiting for game to start...</div>
+            <div id="player-potential-score" style="font-size: 1.5rem; color: var(--jeopardy-yellow); margin-bottom: 10px; font-weight: bold;"></div>
+            <div id="player-locked-score" style="font-size: 1.5rem; color: var(--jeopardy-yellow); margin-bottom: 10px; font-weight: bold; display: none;"></div>
+            <div id="player-question-text" style="font-size: 1.2rem; margin-bottom: 20px; font-weight: bold; display: none;"></div>
+            <div id="player-options" class="options-grid"></div>
+        </div>
+
+        <!-- 5. Standings & Prep View (TV) -->
+        <div id="prep-view" style="display: none;">
+            <div id="prep-question-number" style="color: var(--jeopardy-yellow); font-size: 1.5rem;">QUESTION 1 OF 10</div>
+            <h2 id="prep-category" style="font-size: 2.5rem; margin: 10px 0;">CATEGORY</h2>
+            
+            <div class="card" style="margin: 20px 0; border-width: 2px;">
+                <h3 style="color: var(--jeopardy-yellow); margin-top: 0;">STANDINGS</h3>
+                <ul id="scoreboard-list" class="player-list"></ul>
+            </div>
+
+            <div id="prep-countdown" style="font-size: 4rem; color: var(--jeopardy-yellow);">15</div>
+            <p>GET READY FOR THE NEXT QUESTION!</p>
+        </div>
+
+        <!-- 4. Question/TV View -->
+        <div id="question-view">
+            <div id="question-category" style="color: var(--jeopardy-yellow)">CATEGORY</div>
+            <div id="question-value" style="font-size: 1.5rem; color: var(--jeopardy-yellow); margin: 10px 0;">WORTH: 1000</div>
+            <div id="question-text">The question goes here?</div>
+            <div class="timer-bar"><div id="timer-progress"></div></div>
+            <div id="host-options" class="options-grid"></div>
+        </div>
+    </div>
+
+    <script src="/js/client.js"></script>
+</body>
+</html>
