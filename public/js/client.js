@@ -98,6 +98,39 @@ function startCountdown(displayElement, initialTime, onFinishCallback = () => {}
     return timerId;
 }
 
+/**
+ * Generates and appends option buttons/divs for a question,
+ * handling both host and player specific attributes.
+ * @param {Array<string>} options - An array of answer option strings.
+ * @param {string} parentElementId - The ID of the HTML element to append options to.
+ * @param {boolean} isPlayer - True if rendering for a player, false for a host.
+ * @param {Function} [onClickHandler=null] - Optional click handler for player buttons, receives index.
+ */
+function renderOptionButtons(options, parentElementId, isPlayer, onClickHandler = null) {
+    const parentElement = document.getElementById(parentElementId);
+    if (!parentElement) {
+        console.error(`Parent element with ID "${parentElementId}" not found.`);
+        return;
+    }
+
+    parentElement.innerHTML = ""; // Clear existing options
+
+    options.forEach((opt, i) => {
+        const element = document.createElement(isPlayer ? "button" : "div");
+        element.className = "option-btn";
+        element.id = `${isPlayer ? "player" : "host"}-opt-${i}`;
+        element.innerText = opt;
+
+        if (isPlayer) {
+            element.disabled = false;
+            if (onClickHandler) {
+                element.onclick = () => onClickHandler(i);
+            }
+        }
+        parentElement.appendChild(element);
+    });
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -298,15 +331,7 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
         document.getElementById("question-category").innerText = data.category;
         document.getElementById("question-text").innerText = data.question;
         
-        const hostOptions = document.getElementById("host-options");
-        hostOptions.innerHTML = "";
-        data.options.forEach((opt, i) => {
-            const div = document.createElement("div");
-            div.className = "option-btn";
-            div.id = `host-opt-${i}`;
-            div.innerText = opt;
-            hostOptions.appendChild(div);
-        });
+        renderOptionButtons(data.options, "host-options", false);
 
         const bar = document.getElementById("timer-progress");
         bar.style.transition = "none";
@@ -329,27 +354,19 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
         qText.innerText = data.question;
         qText.style.display = "block";
 
-        const playerOptions = document.getElementById("player-options");
-        playerOptions.innerHTML = "";
-        
-        data.options.forEach((opt, i) => {
-            const btn = document.createElement("button");
-            btn.className = "option-btn";
-            btn.id = `player-opt-${i}`;
-            btn.innerText = opt;
-            btn.disabled = false;
-            btn.onclick = () => {
-                currentChoiceIndex = i;
-                btn.classList.add("selected");
-                document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
-                socket.emit(CMDS.SUBMIT_ANSWER, {
-                    roomCode: currentRoom,
-                    playerUuid: myUuid,
-                    answerIndex: i
-                });
-                document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
-            };
-            playerOptions.appendChild(btn);
+        renderOptionButtons(data.options, "player-options", true, (index) => {
+            currentChoiceIndex = index;
+            const selectedBtn = document.getElementById(`player-opt-${index}`);
+            if (selectedBtn) {
+                selectedBtn.classList.add("selected");
+            }
+            document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
+            socket.emit(CMDS.SUBMIT_ANSWER, {
+                roomCode: currentRoom,
+                playerUuid: myUuid,
+                answerIndex: index
+            });
+            document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
         });
     }
 });
