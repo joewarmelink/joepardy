@@ -179,13 +179,26 @@ socket.on(EVTS.PREP_PHASE, (data) => {
         list.innerHTML = "";
 
         if (data.leaderboard) {
+            // Add a header row for the scoreboard
+            const headerLi = document.createElement("li");
+            headerLi.style.padding = "10px";
+            headerLi.style.fontWeight = "bold";
+            headerLi.innerHTML = `
+                <span style="float: left;">Player</span>
+                <span style="float: right; width: 150px; text-align: right;">Total Score</span>
+                <span style="float: right; width: 100px; text-align: right;">Round Score</span>
+                <div style="clear: both;"></div>
+            `;
+            list.appendChild(headerLi);
+
             data.leaderboard.forEach((player, i) => {
                 const li = document.createElement("li");
                 li.style.padding = "10px";
                 li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
                 li.innerHTML = `
                     <span style="float: left;">${i + 1}. ${player.name}</span>
-                    <span style="float: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                    <span style="float: right; width: 150px; text-align: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                    <span style="float: right; width: 100px; text-align: right; color: var(--jeopardy-blue);">${player.currentRoundScore || 0}</span>
                     <div style="clear: both;"></div>
                 `;
                 list.appendChild(li);
@@ -369,7 +382,7 @@ socket.on(EVTS.QUESTION_RESULTS, (data) => {
             // If for some reason playerScoresThisRound[myUuid] is not available, default to 0
             console.log("Player score is missing.")
             document.getElementById("player-locked-score").innerText = "SCORE: +0";
-            document.getElementById("player-locked-score").style.display = "block"; // Ensure it's visible
+            document.getElementById("player-locked-score").style.display = "block"; // Ensure it\`s visible
         }
     }
 });
@@ -402,13 +415,26 @@ socket.on(EVTS.SHOW_SUMMARY, (data) => {
     list.innerHTML = "";
 
     if (data.leaderboard) {
+        // Add a header row for the scoreboard
+        const headerLi = document.createElement("li");
+        headerLi.style.padding = "10px";
+        headerLi.style.fontWeight = "bold";
+        headerLi.innerHTML = `
+            <span style="float: left;">Player</span>
+            <span style="float: right; width: 150px; text-align: right;">Total Score</span>
+            <span style="float: right; width: 100px; text-align: right;">Round Score</span>
+            <div style="clear: both;"></div>
+        `;
+        list.appendChild(headerLi);
+
         data.leaderboard.forEach((player, i) => {
             const li = document.createElement("li");
             li.style.padding = "10px";
             li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
             li.innerHTML = `
                 <span style="float: left;">${i + 1}. ${player.name}</span>
-                <span style="float: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                <span style="float: right; width: 150px; text-align: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                <span style="float: right; width: 100px; text-align: right; color: var(--jeopardy-blue);">${player.currentRoundScore || 0}</span>
                 <div style="clear: both;"></div>
             `;
             list.appendChild(li);
@@ -468,7 +494,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
             document.getElementById("prep-view").style.display = "block";
             document.getElementById("prep-question-number").innerText = `QUESTION ${data.gameData.currentQuestionIndex + 1} OF ${data.gameData.totalQuestions}`;
             // You might need to derive category/difficulty from somewhere or retrieve it directly if available
-            // For now, let's assume category is available in currentQuestionData if it was set.
+            // For now, let\`s assume category is available in currentQuestionData if it was set.
             // The actual timer for prep phase will restart naturally via prepareNextQuestion from server.
 
         } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {

@@ -90,14 +90,33 @@ class TriviaGame {
 
     this.currentQuestion = this.questions[this.currentQuestionIndex];
 
+    const state = await this.repository.getState(this.roomCode);
+    if (state && state.players) {
+      for (const playerUuid in state.players) {
+        const player = state.players[playerUuid];
+        // Store previous round score for display purposes, then reset current round score
+        player.previousRoundScore = player.currentRoundScore || 0;
+        player.currentRoundScore = 0;
+      }
+      await this.repository.saveState(this.roomCode, state);
+    }
+
     // Before showing the new question, calculate and update scores for the previous round.
+    // _updateScoresForRound will now populate currentRoundScore based on answers from the just-ended round.
     await this._updateScoresForRound();
 
-    const state = await this.repository.getState(this.roomCode);
-    const players = (state && state.players) ? Object.values(state.players) : [];
+    const updatedState = await this.repository.getState(this.roomCode); // Get updated state after score calculations
+    const players = (updatedState && updatedState.players) ? Object.values(updatedState.players) : [];
     const leaderboard = players
         .filter(p => p.role === "player")
-        .sort((a, b) => (b.score || 0) - (a.score || 0));
+        .sort((a, b) => (b.score || 0) - (a.score || 0)) // Sort by total score
+        .map(p => ({
+          uuid: p.uuid,
+          name: p.name,
+          score: p.score || 0, // Total score
+          currentRoundScore: p.currentRoundScore || 0, // Score from the just-ended round
+          previousRoundScore: p.previousRoundScore || 0 // Score from the round before the just-ended one
+        }));
 
     this.eventBus.emit(EventTypes.EVT_PREP_PHASE, {
       roomCode: this.roomCode,
@@ -135,7 +154,10 @@ class TriviaGame {
           player.lastAnswerCorrect
         );
         
-        player.score = (player.score || 0) + pointsAwarded;
+        player.currentRoundScore = pointsAwarded; // Store current round score
+        player.score = (player.score || 0) + pointsAwarded; // Accumulate total score
+      } else if (player.role === "player") {
+        player.currentRoundScore = 0; // Ensure players who didn\'t answer or answered incorrectly have 0 for the round
       }
       // Reset for next round
       player.hasAnswered = false;
@@ -272,7 +294,14 @@ class TriviaGame {
     const players = (state && state.players) ? Object.values(state.players) : [];
     const leaderboard = players
         .filter(p => p.role === "player")
-        .sort((a, b) => (b.score || 0) - (a.score || 0));
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .map(p => ({
+          uuid: p.uuid,
+          name: p.name,
+          score: p.score || 0, // Total score
+          currentRoundScore: p.currentRoundScore || 0, // Score from the just-ended round (or final round)
+          previousRoundScore: p.previousRoundScore || 0 // Score from the round before the just-ended one
+        }));
     
     console.log(`[TriviaGame] endGame - Emitting EVT_SHOW_SUMMARY.`);
     this.eventBus.emit(EventTypes.EVT_SHOW_SUMMARY, {
@@ -291,7 +320,6 @@ class TriviaGame {
 
   /**
    * Internal helper to schedule answer eliminations with a fixed queue.
-   * @private
    */
   _setupEliminationTimers() {
     const totalTime = config.games.trivia.timeToAnswer;
