@@ -72,6 +72,32 @@ function showScreen(screenElement) {
         screenElement.style.display = "block";
     }
 }
+
+/**
+ * Starts a countdown timer that updates a display element.
+ * @param {HTMLElement} displayElement - The DOM element to update with the countdown.
+ * @param {number} initialTime - The starting time for the countdown in seconds.
+ * @param {Function} [onFinishCallback] - Optional callback function to execute when the countdown finishes.
+ * @returns {number} The interval ID, which can be used to clear the timer if needed.
+ */
+function startCountdown(displayElement, initialTime, onFinishCallback = () => {}) {
+    let timeLeft = initialTime;
+    // Update immediately to show initial time
+    displayElement.innerText = timeLeft;
+
+    const timerId = setInterval(() => {
+        timeLeft--;
+        displayElement.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerId);
+            onFinishCallback();
+        }
+    }, 1000);
+
+    return timerId;
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -216,15 +242,8 @@ socket.on(EVTS.PREP_PHASE, (data) => {
         document.getElementById("prep-question-number").innerText = `QUESTION ${data.questionNumber} OF ${data.totalQuestions}`;
         document.getElementById("prep-category").innerText = data.category;
         
-        let timeLeft = data.resultTime;
         const countdownEl = document.getElementById("prep-countdown");
-        countdownEl.innerText = timeLeft;
-        
-        const timer = setInterval(() => {
-            timeLeft--;
-            countdownEl.innerText = timeLeft;
-            if (timeLeft <= 0) clearInterval(timer);
-        }, 1000);
+        startCountdown(countdownEl, data.resultTime);
 
         // Render standings
         renderScoreboard(data.leaderboard, "scoreboard-list");
@@ -421,15 +440,12 @@ socket.on(EVTS.SHOW_SUMMARY, (data) => {
 
     renderScoreboard(data.leaderboard, "final-scoreboard-list");
 
-    let timeLeft = data.summaryScreenTime;
     const countdownEl = document.getElementById("summary-countdown");
-    countdownEl.innerText = `Return to lobby in ${timeLeft}...`;
-
-    const timer = setInterval(() => {
-        timeLeft--;
-        countdownEl.innerText = `Return to lobby in ${timeLeft}...`;
-        if (timeLeft <= 0) clearInterval(timer);
-    }, 1000);
+    countdownEl.innerText = `Return to lobby in ${data.summaryScreenTime}...`; // Set initial text
+    startCountdown(countdownEl, data.summaryScreenTime, () => {
+        // Optional callback if needed after summary countdown finishes
+        console.log("Summary countdown finished.");
+    });
 });
 
 socket.on(EVTS.RETURN_TO_LOBBY, (data) => {
@@ -613,4 +629,3 @@ socket.on(EVTS.ERROR, (data) => {
         // window.location.reload(); // Re-enable if you want automatic reset to join screen
     }
 });
-
