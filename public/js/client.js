@@ -78,16 +78,17 @@ function showScreen(screenElement) {
  * @param {HTMLElement} displayElement - The DOM element to update with the countdown.
  * @param {number} initialTime - The starting time for the countdown in seconds.
  * @param {Function} [onFinishCallback] - Optional callback function to execute when the countdown finishes.
+ * @param {Function} [textFormatter] - Optional function to format the displayed text. Takes timeLeft as argument.
  * @returns {number} The interval ID, which can be used to clear the timer if needed.
  */
-function startCountdown(displayElement, initialTime, onFinishCallback = () => {}) {
+function startCountdown(displayElement, initialTime, onFinishCallback = () => {}, textFormatter = (time) => time.toString()) {
     let timeLeft = initialTime;
-    // Update immediately to show initial time
-    displayElement.innerText = timeLeft;
+    // Update immediately to show initial time with formatter
+    displayElement.innerText = textFormatter(timeLeft);
 
     const timerId = setInterval(() => {
         timeLeft--;
-        displayElement.innerText = timeLeft;
+        displayElement.innerText = textFormatter(timeLeft);
 
         if (timeLeft <= 0) {
             clearInterval(timerId);
@@ -125,7 +126,7 @@ const EVTS = {
 
 /**
  * Renders the scoreboard (header and player entries) into a specified list element.
- * @param {Array} leaderboardData - An array of player objects with score information.
+ * @param {Array} leaderboardData - An array of player objects with score information. 
  * @param {string} listElementId - The ID of the UL element to render the scoreboard into.
  */
 function renderScoreboard(leaderboardData, listElementId) {
@@ -416,11 +417,6 @@ socket.on(EVTS.QUESTION_RESULTS, (data) => {
         if (data.playerScoresThisRound && data.playerScoresThisRound[myUuid] !== undefined) {
             document.getElementById("player-locked-score").innerText = `SCORE: +${data.playerScoresThisRound[myUuid]}`;
             document.getElementById("player-locked-score").style.display = "block"; // Keep locked score visible, but update text
-        } else {
-            // If for some reason playerScoresThisRound[myUuid] is not available, default to 0
-            console.log("Player score is missing.")
-            document.getElementById("player-locked-score").innerText = "SCORE: +0";
-            document.getElementById("player-locked-score").style.display = "block"; // Ensure it\`s visible
         }
     }
 });
@@ -441,11 +437,10 @@ socket.on(EVTS.SHOW_SUMMARY, (data) => {
     renderScoreboard(data.leaderboard, "final-scoreboard-list");
 
     const countdownEl = document.getElementById("summary-countdown");
-    countdownEl.innerText = `Return to lobby in ${data.summaryScreenTime}...`; // Set initial text
     startCountdown(countdownEl, data.summaryScreenTime, () => {
         // Optional callback if needed after summary countdown finishes
         console.log("Summary countdown finished.");
-    });
+    }, (time) => `Return to lobby in ${time}...`);
 });
 
 socket.on(EVTS.RETURN_TO_LOBBY, (data) => {
