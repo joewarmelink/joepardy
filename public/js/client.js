@@ -163,38 +163,67 @@ const EVTS = {
  */
 /**
  * Renders the host-specific UI for the Prep Phase.
- * @param {object} gameData - The game data for the current phase.
- * @param {Array} playersData - An array of player objects for the scoreboard.
+ * @param {object} eventData - The full data object received from the socket event (either PREP_PHASE or RECONNECT_SUCCESS).
  */
-function renderHostPrepPhaseUI(gameData, playersData) {
+function renderHostPrepPhaseUI(eventData) {
+    // Determine if this is a reconnect event (which has data.gameData) or a direct PREP_PHASE event
+    const isReconnect = eventData.gameData !== undefined;
+    const currentPhaseData = isReconnect ? eventData.gameData : eventData; // Use gameData from reconnect, or top-level data from PREP_PHASE
+    const playersForScoreboard = isReconnect ? eventData.players : eventData.leaderboard;
+
+    const currentQuestionNumber = (typeof currentPhaseData.currentQuestionIndex === "number" && !isNaN(currentPhaseData.currentQuestionIndex))
+                                    ? currentPhaseData.currentQuestionIndex + 1 
+                                    : (typeof eventData.questionNumber === "number" && !isNaN(eventData.questionNumber))
+                                        ? eventData.questionNumber // Fallback to PREP_PHASE direct property
+                                        : "UNKNOWN";
+                                            
+    const totalQuestionsDisplay = (typeof currentPhaseData.totalQuestions === "number" && !isNaN(currentPhaseData.totalQuestions)) 
+                                ? currentPhaseData.totalQuestions 
+                                : (currentPhaseData.triviaQuestions?.length > 0) 
+                                    ? currentPhaseData.triviaQuestions.length 
+                                    : (typeof eventData.totalQuestions === "number" && !isNaN(eventData.totalQuestions))
+                                        ? eventData.totalQuestions // Fallback to PREP_PHASE direct property
+                                        : "UNKNOWN";
+
+    const categoryDisplay = currentPhaseData.category || eventData.category || "CATEGORY UNKNOWN"; // Fallback for safety
+
     showScreen(prepView);
 
-    document.getElementById("prep-question-number").innerText = `QUESTION ${gameData.currentQuestionIndex + 1} OF ${gameData.totalQuestions}`;
-    // Assuming category might be directly in gameData during reconnect, or needs to be derived.
-    // For now, let's assume it's available in gameData if a question has been loaded.
-    // If not, it might appear blank or need adjustment.
-    document.getElementById("prep-category").innerText = gameData.category || "CATEGORY UNKNOWN"; // Fallback for safety
-
+    document.getElementById("prep-question-number").innerText = `QUESTION ${currentQuestionNumber} OF ${totalQuestionsDisplay}`;
+    document.getElementById("prep-category").innerText = categoryDisplay;
+    
     const countdownEl = document.getElementById("prep-countdown");
-    startCountdown(countdownEl, gameData.resultTime);
+    // Use the appropriate resultTime property based on event type
+    const resultTime = isReconnect ? currentPhaseData.gameConfig?.summaryScreenTime || currentPhaseData.summaryScreenTime || 15 : currentPhaseData.resultTime; // Default to 15s if not found
+    startCountdown(countdownEl, resultTime); 
 
-    renderScoreboard(playersData, "scoreboard-list");
+    renderScoreboard(playersForScoreboard, "scoreboard-list");
 }
 
 /**
  * Renders the player-specific UI for the Prep Phase.
- * @param {object} gameData - The game data for the current phase.
- * @param {Array} playersData - An array of player objects (or leaderboard) to find the current player's score.
+ * @param {object} eventData - The full data object received from the socket event (either PREP_PHASE or RECONNECT_SUCCESS).
  * @param {string} myPlayerUuid - The UUID of the current player.
  */
-function renderPlayerPrepPhaseUI(gameData, playersData, myPlayerUuid) {
-    document.getElementById("player-status").innerText = `GET READY FOR QUESTION ${gameData.currentQuestionIndex + 1}!`;
+function renderPlayerPrepPhaseUI(eventData, myPlayerUuid) {
+    // Determine if this is a reconnect event (which has data.gameData) or a direct PREP_PHASE event
+    const isReconnect = eventData.gameData !== undefined;
+    const currentPhaseData = isReconnect ? eventData.gameData : eventData; // Use gameData from reconnect, or top-level data from PREP_PHASE
+    const playersForScoreCalculation = isReconnect ? eventData.players : eventData.leaderboard;
+
+    const currentQuestionNumber = (typeof currentPhaseData.currentQuestionIndex === "number" && !isNaN(currentPhaseData.currentQuestionIndex))
+                                    ? currentPhaseData.currentQuestionIndex + 1 
+                                    : (typeof eventData.questionNumber === "number" && !isNaN(eventData.questionNumber))
+                                        ? eventData.questionNumber // Fallback to PREP_PHASE direct property
+                                        : "UNKNOWN";
+
+    document.getElementById("player-status").innerText = `GET READY FOR QUESTION ${currentQuestionNumber}!`;
     document.getElementById("player-question-text").style.display = "none";
     document.getElementById("player-options").innerHTML = "";
     document.getElementById("player-potential-score").style.display = "none"; // Hide potential score on prep
 
     // Find current player's score from playersData (which can be `leaderboard` or `data.players`)
-    const currentPlayer = playersData.find(p => p.uuid === myPlayerUuid);
+    const currentPlayer = playersForScoreCalculation.find(p => p.uuid === myPlayerUuid);
     const playerScore = currentPlayer ? currentPlayer.score || 0 : 0;
 
     document.getElementById("player-locked-score").innerText = `SCORE: ${playerScore}`;
@@ -310,9 +339,9 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
 
 socket.on(EVTS.PREP_PHASE, (data) => {
     if (isHost) {
-        renderHostPrepPhaseUI(data, data.leaderboard);
+        renderHostPrepPhaseUI(data);
     } else {
-        renderPlayerPrepPhaseUI(data, data.leaderboard, myUuid);
+        renderPlayerPrepPhaseUI(data, myUuid);
     }
 });
 
@@ -525,7 +554,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
             // Host is in lobby or game just started, show lobby view
             // This part might need more granular control later
         } else if (data.gameData.currentPhase === "PREP_OR_RESULTS") {
-            renderHostPrepPhaseUI(data.gameData, data.players);
+            renderHostPrepPhaseUI(data);
 
         } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {
             // Host reconnected during an active question
@@ -558,7 +587,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
             document.getElementById("player-locked-score").innerText = `SCORE: ${data.player.score || 0}`;
             document.getElementById("player-locked-score").style.display = "block";
         } else if (data.gameData.currentPhase === "PREP_OR_RESULTS") {
-            renderPlayerPrepPhaseUI(data.gameData, data.players, myUuid);
+            renderPlayerPrepPhaseUI(data, myUuid);
         } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {
             // Player reconnected during an active question
             document.getElementById("player-question-text").innerText = data.gameData.currentQuestionData.question;
