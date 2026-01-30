@@ -58,3 +58,10 @@ JoePARDY! is a professional-grade, JackBox-style trivia platform featuring a mod
 - **Unified Results & Get Ready Screen (15s)**: Merged the post-question scoreboard and pre-question "Get Ready" phases into a single, unified screen with a configurable 15-second countdown. This includes filtering out "HOST" from the player list displayed on the scoreboard, based on player roles.
 - **Client Answer Highlighting & Potential Score Display**: Implemented visual feedback for player answers, including a yellow highlight on selection, and server-confirmed "LOCKED FOR: +XXX" (potential points) display. The client also now shows the actual score for the round (`SCORE: +XXX`) after results are revealed.
 - **Score Calculation Accuracy**: Fixed a bug where `ScoreCalculator.js` was calculating points even for incorrect answers. Scores are now only accumulated to a player's total after the question results are revealed.
+
+## Development Workflow
+- **Branching**: For each new task, create a dedicated feature branch from `master` (e.g., `git checkout -b feature/your-task-name`).
+- **Incremental Changes**: Make small, focused changes that can be tested independently.
+- **Commit Frequently**: After each set of testable changes, commit them with a clear and concise message (e.g., `git commit -m "feat: brief description of change"`).
+- **Push to Remote**: Once the task is complete and thoroughly tested, push your feature branch to the remote repository (e.g., `git push origin feature/your-task-name`).
+- **Merge**: Create a pull request to merge your feature branch into `master` after review.
