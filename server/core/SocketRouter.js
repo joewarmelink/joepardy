@@ -32,19 +32,7 @@ class SocketRouter {
     });
 
     // Game Level Events
-    const gameEvents = [
-        EventTypes.EVT_GAME_STARTED,
-        EventTypes.EVT_PREP_PHASE,
-        EventTypes.EVT_NEXT_QUESTION,
-        EventTypes.EVT_ELIMINATE_OPTION,
-        EventTypes.EVT_ANSWER_ACCEPTED,
-        EventTypes.EVT_QUESTION_RESULTS,
-        EventTypes.EVT_SHOW_SCOREBOARD,
-        EventTypes.EVT_GAME_OVER,
-        EventTypes.EVT_ERROR
-    ];
-
-    gameEvents.forEach(evt => {
+    EventTypes.CLIENT_BROADCAST_EVENTS.forEach(evt => {
         this.eventBus.on(evt, (data) => {
             if (data && data.roomCode) {
                 this.io.to(data.roomCode).emit(evt, data);

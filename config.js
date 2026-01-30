@@ -20,19 +20,22 @@ module.exports = {
   games: {
     trivia: {
       // Game length
-      questionsPerGame: 10,
+      questionsPerGame: 2,
 
       // Total time allowed to answer a question in seconds
       timeToAnswer: 10,
       
       // Time to show results and standby for next question (seconds)
-      resultTime: 15,
+      resultTime: 5,
 
       // Time to allow reading the question before the timer starts (seconds)
-      readingBufferTime: 2,
+      readingBufferTime: 3.5,
+
+      // Time to show the final summary screen before returning to lobby (seconds)
+      summaryScreenTime: 10,
 
       // Percentage marks for answer elimination (75%, 50%, 25% of time remaining)
-      eliminationMarks: [0.75, 0.5, 0.25],
+      eliminationMarks: [0.5, 0.25, 0.0],
       
       // Scoring constants
       scoring: {

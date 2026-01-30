@@ -22,6 +22,7 @@ const joinScreen = document.getElementById("join-screen");
 const hostScreen = document.getElementById("host-screen");
 const playerScreen = document.getElementById("player-screen");
 const questionView = document.getElementById("question-view");
+const summaryScreen = document.getElementById("summary-screen");
 
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
@@ -42,6 +43,8 @@ const EVTS = {
     QUESTION_RESULTS: "game:question_results",
     SHOW_SCOREBOARD: "game:show_scoreboard",
     GAME_OVER: "game:over",
+    SHOW_SUMMARY: "game:show_summary",
+    RETURN_TO_LOBBY: "game:return_to_lobby",
     ERROR: "platform:error",
     RECONNECT_SUCCESS: "reconnect:success"
 };
@@ -384,9 +387,49 @@ socket.on(EVTS.GAME_OVER, (data) => {
     localStorage.removeItem("hostRoomCode");
     localStorage.removeItem("hostUuid");
     localStorage.removeItem("hostRole");
+});
 
-    alert("Game Over!");
-    window.location.reload(); // Reloads to the join screen
+socket.on(EVTS.SHOW_SUMMARY, (data) => {
+    console.log(`[Client] EVT_SHOW_SUMMARY received. Data:`, data);
+    hostScreen.style.display = "none";
+    joinScreen.style.display = "none";
+    playerScreen.style.display = "none";
+    questionView.style.display = "none";
+    document.getElementById("prep-view").style.display = "none";
+    summaryScreen.style.display = "block";
+
+    const list = document.getElementById("final-scoreboard-list");
+    list.innerHTML = "";
+
+    if (data.leaderboard) {
+        data.leaderboard.forEach((player, i) => {
+            const li = document.createElement("li");
+            li.style.padding = "10px";
+            li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+            li.innerHTML = `
+                <span style="float: left;">${i + 1}. ${player.name}</span>
+                <span style="float: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                <div style="clear: both;"></div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    let timeLeft = data.summaryScreenTime;
+    const countdownEl = document.getElementById("summary-countdown");
+    countdownEl.innerText = `Return to lobby in ${timeLeft}...`;
+
+    const timer = setInterval(() => {
+        timeLeft--;
+        countdownEl.innerText = `Return to lobby in ${timeLeft}...`;
+        if (timeLeft <= 0) clearInterval(timer);
+    }, 1000);
+});
+
+socket.on(EVTS.RETURN_TO_LOBBY, (data) => {
+    console.log(`[Client] EVT_RETURN_TO_LOBBY received. Data:`, data);
+    summaryScreen.style.display = "none";
+    joinScreen.style.display = "block";
 });
 
 socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
@@ -557,6 +600,10 @@ socket.on("connect", () => {
     }
 });
 
+socket.onAny((event, ...args) => {
+    console.log(`[Client] Received event: ${event}`, args);
+});
+
 socket.on(EVTS.ERROR, (data) => {
     console.error("Server Error:", data.message);
     // Optionally, if the error is a "Room not found" during auto-reconnect,
@@ -573,3 +620,4 @@ socket.on(EVTS.ERROR, (data) => {
         // window.location.reload(); // Re-enable if you want automatic reset to join screen
     }
 });
+

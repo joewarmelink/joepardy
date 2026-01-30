@@ -21,7 +21,7 @@ class OpenTDBProvider {
    * @returns {Promise<Array>} Array of formatted TriviaQuestion objects.
    */
   async getQuestions(amount = 10) {
-    const url = `${this.apiUrl}?amount=${amount}&type=multiple`;
+    const url = `${this.apiUrl}?amount=${amount}&difficulty=easy&type=multiple`;
     
     const response = await fetch(url);
     if (!response.ok) {

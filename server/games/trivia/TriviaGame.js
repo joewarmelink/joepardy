@@ -1,6 +1,6 @@
 /**
  * TriviaGame.js
- * 
+ *
  * Main logic for the Trivia game type.
  * Handles fetching questions, managing timer-based eliminations,
  * and processing player scores.
@@ -48,6 +48,7 @@ class TriviaGame {
 
     this.eventBus.on(EventTypes.CMD_REQUEST_NEXT, async (data) => {
       if (data && data.roomCode === this.roomCode) {
+        console.log(`[TriviaGame] CMD_REQUEST_NEXT received for room ${data.roomCode}. Triggering prepareNextQuestion.`);
         await this.prepareNextQuestion();
       }
     });
@@ -61,6 +62,7 @@ class TriviaGame {
     this.isGameActive = true;
 
     this.questions = await this.provider.getQuestions(config.games.trivia.questionsPerGame);
+    console.log(`[TriviaGame] startGame - Fetched ${this.questions.length} questions.`); // Log question count
     this.currentQuestionIndex = -1;
 
     this.eventBus.emit(EventTypes.EVT_GAME_STARTED, {
@@ -75,16 +77,19 @@ class TriviaGame {
    * Initiates the preparation phase before a question.
    */
   async prepareNextQuestion() {
+    console.log(`[TriviaGame] prepareNextQuestion - Entry. currentQuestionIndex: ${this.currentQuestionIndex}, questions.length: ${this.questions.length}`);
     this._clearTimers();
     this.currentQuestionIndex++;
 
+    console.log(`[TriviaGame] prepareNextQuestion - After increment. currentQuestionIndex: ${this.currentQuestionIndex}, questions.length: ${this.questions.length}`);
     if (this.currentQuestionIndex >= this.questions.length) {
+      console.log(`[TriviaGame] prepareNextQuestion - Condition met: currentQuestionIndex (${this.currentQuestionIndex}) >= questions.length (${this.questions.length}). Calling endGame().`);
       await this.endGame();
       return;
     }
 
     this.currentQuestion = this.questions[this.currentQuestionIndex];
-    
+
     // Before showing the new question, calculate and update scores for the previous round.
     await this._updateScoresForRound();
 
@@ -200,14 +205,21 @@ class TriviaGame {
       playerScoresThisRound: playerScoresThisRound // This is sent.
     });
 
-    // Stay on reveal screen for a bit, then move to unified standings/prep
-    this._setTimer(() => {
-        this.eventBus.emit(EventTypes.CMD_REQUEST_NEXT, { roomCode: this.roomCode });
+    // Stay on reveal screen for a bit, then either move to next question or end game
+    this._setTimer(async () => {
+        console.log(`[TriviaGame] revealResults timer finished. currentQuestionIndex: ${this.currentQuestionIndex}, questions.length: ${this.questions.length}`);
+        if (this.currentQuestionIndex + 1 >= this.questions.length) {
+            console.log(`[TriviaGame] revealResults - Last question. Calling endGame().`);
+            await this.endGame();
+        } else {
+            console.log(`[TriviaGame] revealResults - Not last question. Emitting CMD_REQUEST_NEXT.`);
+            this.eventBus.emit(EventTypes.CMD_REQUEST_NEXT, { roomCode: this.roomCode });
+        }
     }, 5000);
   }
 
   /**
-   * Processes a player\"s answer and updates their score.
+   * Processes a player\'s answer and updates their score.
    */
   async handleAnswer(playerUuid, answerIndex) {
     if (!this.currentQuestion || !this.questionStartTime) {
@@ -217,7 +229,7 @@ class TriviaGame {
     const state = await this.repository.getState(this.roomCode);
     if (!state || !state.players || !state.players[playerUuid]) return;
 
-    // Don\"t allow double scoring, unless we decide to enable changing answers later
+    // Don\'t allow double scoring, unless we decide to enable changing answers later
     // For now, record the time and correctness of the first answer.
     if (state.players[playerUuid].hasAnswered) return;
 
@@ -250,6 +262,7 @@ class TriviaGame {
    * Finishes the game session.
    */
   async endGame() {
+    console.log(`[TriviaGame] endGame - Entry.`);
     this._clearTimers();
     this.isGameActive = false;
     // Ensure final scores are updated
@@ -261,10 +274,19 @@ class TriviaGame {
         .filter(p => p.role === "player")
         .sort((a, b) => (b.score || 0) - (a.score || 0));
     
-    this.eventBus.emit(EventTypes.EVT_GAME_OVER, {
+    console.log(`[TriviaGame] endGame - Emitting EVT_SHOW_SUMMARY.`);
+    this.eventBus.emit(EventTypes.EVT_SHOW_SUMMARY, {
       roomCode: this.roomCode,
-      leaderboard
+      leaderboard,
+      summaryScreenTime: config.games.trivia.summaryScreenTime
     });
+
+    this._setTimer(async () => {
+      console.log(`[TriviaGame] endGame timer finished. Deleting room ${this.roomCode} and emitting EVT_RETURN_TO_LOBBY.`);
+      await this.repository.deleteRoom(this.roomCode); // Clear game state
+      this.eventBus.emit(EventTypes.EVT_RETURN_TO_LOBBY, { roomCode: this.roomCode });
+    }, config.games.trivia.summaryScreenTime * 1000);
+    console.log(`[TriviaGame] endGame - Exit.`);
   }
 
   /**

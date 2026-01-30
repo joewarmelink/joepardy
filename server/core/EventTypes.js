@@ -26,6 +26,8 @@ module.exports = {
   EVT_QUESTION_RESULTS: 'game:question_results',
   EVT_SHOW_SCOREBOARD: 'game:show_scoreboard',
   EVT_GAME_OVER: 'game:over',
+  EVT_SHOW_SUMMARY: 'game:show_summary',
+  EVT_RETURN_TO_LOBBY: 'game:return_to_lobby',
   EVT_ERROR: 'platform:error',
   EVT_RECONNECT_SUCCESS: 'reconnect:success',
 
@@ -33,3 +35,19 @@ module.exports = {
   SYSTEM_DISCONNECT: 'system:disconnect',
   SYSTEM_RECONNECT: 'system:reconnect'
 };
+
+// Events that are broadcast to clients in a specific room
+module.exports.CLIENT_BROADCAST_EVENTS = [
+  module.exports.EVT_GAME_STARTED,
+  module.exports.EVT_PREP_PHASE,
+  module.exports.EVT_NEXT_QUESTION,
+  module.exports.EVT_ELIMINATE_OPTION,
+  module.exports.EVT_ANSWER_ACCEPTED,
+  module.exports.EVT_QUESTION_RESULTS,
+  module.exports.EVT_SHOW_SCOREBOARD,
+  module.exports.EVT_GAME_OVER,
+  module.exports.EVT_SHOW_SUMMARY,
+  module.exports.EVT_RETURN_TO_LOBBY,
+  module.exports.EVT_ERROR
+];
+
