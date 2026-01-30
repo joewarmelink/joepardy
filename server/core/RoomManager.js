@@ -43,7 +43,7 @@ class RoomManager {
    * @param {Object} player - The player object containing uuid and name.
    * @returns {Promise<boolean>} True if the room exists and player was added, false otherwise.
    */
-  async joinRoom(roomCode, player) {
+  async joinRoom(roomCode, player, socketId) {
     const state = await this.repository.getState(roomCode);
     if (!state) {
       return false;
@@ -52,10 +52,36 @@ class RoomManager {
     // Default role to player if not provided
     const participant = {
         ...player,
-        role: player.role || 'player'
+        role: player.role || 'player',
+        socketId: socketId // Store the socketId with the participant
     };
 
-    state.players[participant.uuid] = participant;
+    if (state.players[participant.uuid]) {
+      // Player already exists, update their socketId, name, and role
+      state.players[participant.uuid].socketId = socketId;
+      state.players[participant.uuid].name = participant.name;
+      state.players[participant.uuid].role = participant.role;
+    } else {
+      // New player, add them to the room
+      state.players[participant.uuid] = participant;
+    }
+
+    await this.repository.saveState(roomCode, state);
+    return true;
+  }
+
+  /**
+   * Marks a player as disconnected by setting their socketId to null.
+   * @param {string} roomCode - The code of the room.
+   * @param {string} playerUuid - The UUID of the player who disconnected.
+   * @returns {Promise<boolean>} True if player was found and marked, false otherwise.
+   */
+  async markPlayerDisconnected(roomCode, playerUuid) {
+    const state = await this.repository.getState(roomCode);
+    if (!state || !state.players[playerUuid]) {
+      return false;
+    }
+    state.players[playerUuid].socketId = null;
     await this.repository.saveState(roomCode, state);
     return true;
   }

@@ -21,9 +21,34 @@ JoePARDY! is a professional-grade, JackBox-style trivia platform featuring a mod
 - **Source Control**: Git is used for version control, with a `.gitignore` to exclude unnecessary files like `node_modules`.
 - **HTML Entity Decoding**: The `he` library is used for robust decoding of HTML entities in trivia questions and answers.
 - **Coding Style**: Consistent use of double quotes (`"`) for strings in JavaScript files.
+  - **Tool Usage Best Practices (replace_in_file) for Cline 3.17.9+ (MANDATORY FORMAT)**:
+    - **IMPORTANT**: As of Cline version 3.17.9, the `replace_in_file` tool *exclusively* uses the following `diff` parameter format. *Any deviation will result in failure*.
+      ```
+      ------- SEARCH
+      [exact content to find, including all whitespace, invisible characters, and line endings (e.g., trailing \\n)]
+      =======
+      [new content to replace with, including all whitespace, invisible characters, and line endings (e.g., trailing \\n)]
+      +++++++ REPLACE
+      ```
+    - **CRITICAL `SEARCH` BLOCK ACCURACY**: The content provided in the `SEARCH` block *must* be an exact, character-for-character match to the content in the file. Pay extreme attention to:
+      - **Leading/Trailing Whitespace**: Any spaces or tabs before or after the text.
+      - **Invisible Characters**: Such as non-breaking spaces.
+      - **Line Endings**: Always include the exact line ending (`\\n` for LF, `\\r\\n` for CRLF if applicable, though LF is preferred in this project due to `core.autocrlf input`).
+    - **Example Usage (Replacing a single line):**
+      ```python
+      print(default_api.replace_in_file(
+          absolutePath = "path/to/your/file.js",
+          diff = """\n------ SEARCH\nconsole.log(\"old line\");\\n\n=======\nconsole.log(\"new line\");\\n\n+++++++ REPLACE\n"""
+      ))
+      ```
+    - **Avoid `write_to_file`**: *Never* fall back to `read_file` followed by `write_to_file` for targeted changes. Chain multiple `replace_in_file` calls for complex operations.\n
+    - **Verification**: Always verify changes after `replace_in_file` execution by re-reading the file.
+
+### Testing and Verification Best Practices
+- **Local Server Execution**: To test the application locally, the developer should run `node index.js` from the project root. This is the preferred method for starting the server to verify changes.
 
 ## Solved Problems
-- **Death Loop Fix**: Resolved an infinite recursion/event loop by separating internal commands from broadcast events and implementing a manual `CMD_REQUEST_NEXT` trigger between rounds.
+- **Death Loop Fix**: Resolved an infinite recursion/event loop by separating internal commands from broadcast events and imp3.17.9lementing a manual `CMD_REQUEST_NEXT` trigger between rounds.
 - **Host Sync Fix**: Ensured the Host screen officially joins the socket room to receive broadcasts.
 - **Robust HTML Entity Decoding**: Replaced manual `replace()` calls with the `he` library to properly decode all standard and numeric HTML entities, resolving issues with unreadable characters in questions.
 - **Question on Phone Interface**: Implemented logic to display the current question text on the player's phone screen for improved accessibility.
@@ -33,11 +58,3 @@ JoePARDY! is a professional-grade, JackBox-style trivia platform featuring a mod
 - **Unified Results & Get Ready Screen (15s)**: Merged the post-question scoreboard and pre-question "Get Ready" phases into a single, unified screen with a configurable 15-second countdown. This includes filtering out "HOST" from the player list displayed on the scoreboard, based on player roles.
 - **Client Answer Highlighting & Potential Score Display**: Implemented visual feedback for player answers, including a yellow highlight on selection, and server-confirmed "LOCKED FOR: +XXX" (potential points) display. The client also now shows the actual score for the round (`SCORE: +XXX`) after results are revealed.
 - **Score Calculation Accuracy**: Fixed a bug where `ScoreCalculator.js` was calculating points even for incorrect answers. Scores are now only accumulated to a player's total after the question results are revealed.
-
-## Pending Tasks and Next Steps
-- **Task 1: Configure Git for Line Ending Normalization**: Configure Git globally to ensure consistent line endings across the project (`git config --global core.autocrlf input`).
-- **Task 2: Fix the git repository -- when we originally set this up, it checked in my whole desktop, which included a bunch of different projects.  The root of the project should be the trivia-platform folder on my desktop, not the whole desktop.
-- **Task 3: Scoreboard Round Score Display**: Enhance the scoreboard to show both current round score and total overall score for each player.
-- **Task 4: Final Winner Screen & 10-Question Cycle**: Implement a final winner screen at the end of a 10-question game cycle.
-- **Task 5: Persistence & Reconnection**: Implement browser refresh resilience by saving room code and player state in `localStorage`.
-

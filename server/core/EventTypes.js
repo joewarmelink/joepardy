@@ -13,6 +13,7 @@ module.exports = {
   CMD_START_GAME: 'game:start',
   CMD_SUBMIT_ANSWER: 'game:submit_answer',
   CMD_REQUEST_NEXT: 'game:request_next', // Internal trigger for next state
+  CMD_PLAYER_DISCONNECTED: 'player:disconnected',
 
   // --- Events (Output to the Clients) ---
   EVT_ROOM_CREATED: 'room:created',

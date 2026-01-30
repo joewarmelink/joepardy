@@ -46,7 +46,7 @@ io.on('connection', (socket) => {
 eventBus.on(EventTypes.CMD_JOIN_ROOM, async (data) => {
   const { roomCode, player, socketId } = data;
   
-  const success = await roomManager.joinRoom(roomCode, player);
+  const success = await roomManager.joinRoom(roomCode, player, socketId);
   if (success) {
     eventBus.emit(EventTypes.EVT_PLAYER_JOINED, {
       roomCode,
@@ -75,6 +75,43 @@ eventBus.on(EventTypes.CMD_CREATE_ROOM, async (data) => {
   activeGames.set(roomCode, game);
 
   io.to(socketId).emit(EventTypes.EVT_ROOM_CREATED, { roomCode });
+});
+
+// Handler for SYSTEM_DISCONNECT
+eventBus.on(EventTypes.SYSTEM_DISCONNECT, async ({ socketId }) => {
+  console.log(`SYSTEM_DISCONNECT received for socketId: ${socketId}`); // For testing
+
+  let foundPlayer = null;
+  let foundRoomCode = null;
+
+  // Iterate through all active games to find the player
+  for (const [roomCode, gameInstance] of activeGames.entries()) {
+    const players = await roomManager.getPlayers(roomCode);
+    if (players) {
+      foundPlayer = players.find(player => player.socketId === socketId);
+      if (foundPlayer) {
+        foundRoomCode = roomCode;
+        break; // Player found, stop searching
+      }
+    }
+  }
+
+  if (foundPlayer && foundRoomCode) {
+    console.log(`Disconnected player found: ${foundPlayer.name} (UUID: ${foundPlayer.uuid}) in room ${foundRoomCode}`); // For testing
+    eventBus.emit(EventTypes.CMD_PLAYER_DISCONNECTED, {
+      roomCode: foundRoomCode,
+      playerUuid: foundPlayer.uuid,
+      socketId: socketId // Include socketId for more context, though RoomManager primarily uses UUID
+    });
+  } else {
+    console.log(`Disconnected socketId ${socketId} not associated with any active player.`); // For testing
+  }
+});
+
+// Handler for CMD_PLAYER_DISCONNECTED
+eventBus.on(EventTypes.CMD_PLAYER_DISCONNECTED, async ({ roomCode, playerUuid }) => {
+  console.log(`CMD_PLAYER_DISCONNECTED received for player ${playerUuid} in room ${roomCode}. Marking as disconnected.`); // For testing
+  await roomManager.markPlayerDisconnected(roomCode, playerUuid);
 });
 
 // 5. Start Server

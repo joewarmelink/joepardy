@@ -93,6 +93,16 @@ socket.on(EVTS.ROOM_CREATED, (data) => {
         roomCode: currentRoom,
         player: { uuid: "HOST-" + currentRoom, name: "HOST", role: "host" }
     });
+
+    localStorage.setItem("hostRoomCode", data.roomCode);
+    localStorage.setItem("hostUuid", "HOST-" + currentRoom); // Host UUID is derived
+    localStorage.setItem("hostRole", "host");
+
+    // Clear player-related localStorage entries when becoming a host
+    localStorage.removeItem("playerRoomCode");
+    localStorage.removeItem("playerUuid");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerRole");
 });
 
 socket.on(EVTS.PLAYER_JOINED, (data) => {
@@ -110,6 +120,16 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
         joinScreen.style.display = "none";
         playerScreen.style.display = "block";
         document.getElementById("player-status").innerText = `IN THE LOBBY AS ${data.player.name}`;
+
+        localStorage.setItem("playerRoomCode", data.roomCode);
+        localStorage.setItem("playerUuid", data.player.uuid);
+        localStorage.setItem("playerName", data.player.name);
+        localStorage.setItem("playerRole", data.player.role);
+
+        // Clear host-related localStorage entries when becoming a player
+        localStorage.removeItem("hostRoomCode");
+        localStorage.removeItem("hostUuid");
+        localStorage.removeItem("hostRole");
     }
 });
 
@@ -336,6 +356,20 @@ socket.on(EVTS.QUESTION_RESULTS, (data) => {
 
 socket.on(EVTS.SHOW_SCOREBOARD, (data) => {
     // Deprecated in favor of merged Prep phase
+});
+
+socket.on(EVTS.GAME_OVER, (data) => {
+    // Clear all game-related localStorage on game over
+    localStorage.removeItem("playerRoomCode");
+    localStorage.removeItem("playerUuid");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerRole");
+    localStorage.removeItem("hostRoomCode");
+    localStorage.removeItem("hostUuid");
+    localStorage.removeItem("hostRole");
+
+    alert("Game Over!");
+    window.location.reload(); // Reloads to the join screen
 });
 
 socket.on(EVTS.ERROR, (data) => {
