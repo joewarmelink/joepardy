@@ -11,6 +11,32 @@ const socket = io();
 let myUuid = localStorage.getItem("playerUuid") || Math.random().toString(36).substring(2, 15);
 localStorage.setItem("playerUuid", myUuid);
 
+// --- Local Storage Helper Functions ---
+function clearGameLocalStorage() {
+    localStorage.removeItem("playerRoomCode");
+    localStorage.removeItem("playerUuid");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerRole");
+    localStorage.removeItem("hostRoomCode");
+    localStorage.removeItem("hostUuid");
+    localStorage.removeItem("hostRole");
+}
+
+function setPlayerLocalStorage(roomCode, uuid, name, role) {
+    clearGameLocalStorage(); // Clear host data when setting player data
+    localStorage.setItem("playerRoomCode", roomCode);
+    localStorage.setItem("playerUuid", uuid);
+    localStorage.setItem("playerName", name);
+    localStorage.setItem("playerRole", role);
+}
+
+function setHostLocalStorage(roomCode, uuid, role) {
+    clearGameLocalStorage(); // Clear player data when setting host data
+    localStorage.setItem("hostRoomCode", roomCode);
+    localStorage.setItem("hostUuid", uuid);
+    localStorage.setItem("hostRole", role);
+}
+// --- End Local Storage Helper Functions ---
 let currentRoom = null;
 let isHost = false;
 let valueInterval = null;
@@ -57,13 +83,7 @@ function setupHost() {
     joinScreen.style.display = "none";
     hostScreen.style.display = "block";
     // Clear any previous auto-rejoin state before a manual host setup
-    localStorage.removeItem("playerRoomCode");
-    localStorage.removeItem("playerUuid");
-    localStorage.removeItem("playerName");
-    localStorage.removeItem("playerRole");
-    localStorage.removeItem("hostRoomCode");
-    localStorage.removeItem("hostUuid");
-    localStorage.removeItem("hostRole");
+    clearGameLocalStorage();
     socket.emit(CMDS.CREATE_ROOM, {});
 }
 
@@ -81,13 +101,7 @@ function joinRoom() {
 
     currentRoom = code;
     // Clear any previous auto-rejoin state before a manual join
-    localStorage.removeItem("playerRoomCode");
-    localStorage.removeItem("playerUuid");
-    localStorage.removeItem("playerName");
-    localStorage.removeItem("playerRole");
-    localStorage.removeItem("hostRoomCode");
-    localStorage.removeItem("hostUuid");
-    localStorage.removeItem("hostRole");
+    clearGameLocalStorage();
     socket.emit(CMDS.JOIN_ROOM, {
         roomCode: code,
         player: { uuid: myUuid, name: name, role: "player" }
@@ -114,15 +128,7 @@ socket.on(EVTS.ROOM_CREATED, (data) => {
         player: { uuid: "HOST-" + currentRoom, name: "HOST", role: "host" }
     });
 
-    localStorage.setItem("hostRoomCode", data.roomCode);
-    localStorage.setItem("hostUuid", "HOST-" + currentRoom); // Host UUID is derived
-    localStorage.setItem("hostRole", "host");
-
-    // Clear player-related localStorage entries when becoming a host
-    localStorage.removeItem("playerRoomCode");
-    localStorage.removeItem("playerUuid");
-    localStorage.removeItem("playerName");
-    localStorage.removeItem("playerRole");
+    setHostLocalStorage(data.roomCode, "HOST-" + currentRoom, "host");
 });
 
 socket.on(EVTS.PLAYER_JOINED, (data) => {
@@ -141,15 +147,7 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
         playerScreen.style.display = "block";
         document.getElementById("player-status").innerText = `IN THE LOBBY AS ${data.player.name}`;
 
-        localStorage.setItem("playerRoomCode", data.roomCode);
-        localStorage.setItem("playerUuid", data.player.uuid);
-        localStorage.setItem("playerName", data.player.name);
-        localStorage.setItem("playerRole", data.player.role);
-
-        // Clear host-related localStorage entries when becoming a player
-        localStorage.removeItem("hostRoomCode");
-        localStorage.removeItem("hostUuid");
-        localStorage.removeItem("hostRole");
+        setPlayerLocalStorage(data.roomCode, data.player.uuid, data.player.name, data.player.role);
     }
 });
 
@@ -393,13 +391,7 @@ socket.on(EVTS.SHOW_SCOREBOARD, (data) => {
 
 socket.on(EVTS.GAME_OVER, (data) => {
     // Clear all game-related localStorage on game over
-    localStorage.removeItem("playerRoomCode");
-    localStorage.removeItem("playerUuid");
-    localStorage.removeItem("playerName");
-    localStorage.removeItem("playerRole");
-    localStorage.removeItem("hostRoomCode");
-    localStorage.removeItem("hostUuid");
-    localStorage.removeItem("hostRole");
+    clearGameLocalStorage();
 });
 
 socket.on(EVTS.SHOW_SUMMARY, (data) => {
@@ -635,13 +627,7 @@ socket.on(EVTS.ERROR, (data) => {
     // Optionally, if the error is a "Room not found" during auto-reconnect,
     // we might want to clear localStorage to prevent repeated attempts.
     if (data.message === "Room not found") {
-        localStorage.removeItem("playerRoomCode");
-        localStorage.removeItem("playerUuid");
-        localStorage.removeItem("playerName");
-        localStorage.removeItem("playerRole");
-        localStorage.removeItem("hostRoomCode");
-        localStorage.removeItem("hostUuid");
-        localStorage.removeItem("hostRole");
+        clearGameLocalStorage();
         // Reload the page to reset the UI to the join screen cleanly
         // window.location.reload(); // Re-enable if you want automatic reset to join screen
     }
