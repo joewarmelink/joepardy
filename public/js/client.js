@@ -49,7 +49,29 @@ const hostScreen = document.getElementById("host-screen");
 const playerScreen = document.getElementById("player-screen");
 const questionView = document.getElementById("question-view");
 const summaryScreen = document.getElementById("summary-screen");
+const prepView = document.getElementById("prep-view");
 
+// Utility function to manage screen transitions
+function showScreen(screenElement) {
+    const allScreens = [
+        joinScreen,
+        hostScreen,
+        playerScreen,
+        questionView,
+        summaryScreen,
+        prepView
+    ];
+
+    allScreens.forEach(screen => {
+        if (screen && screen !== screenElement) {
+            screen.style.display = "none";
+        }
+    });
+
+    if (screenElement) {
+        screenElement.style.display = "block";
+    }
+}
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -80,8 +102,7 @@ const EVTS = {
  */
 function setupHost() {
     isHost = true;
-    joinScreen.style.display = "none";
-    hostScreen.style.display = "block";
+    showScreen(hostScreen);
     // Clear any previous auto-rejoin state before a manual host setup
     clearGameLocalStorage();
     socket.emit(CMDS.CREATE_ROOM, {});
@@ -143,8 +164,7 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
             list.appendChild(li);
         }
     } else {
-        joinScreen.style.display = "none";
-        playerScreen.style.display = "block";
+        showScreen(playerScreen);
         document.getElementById("player-status").innerText = `IN THE LOBBY AS ${data.player.name}`;
 
         setPlayerLocalStorage(data.roomCode, data.player.uuid, data.player.name, data.player.role);
@@ -152,13 +172,9 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
 });
 
 socket.on(EVTS.PREP_PHASE, (data) => {
-    hostScreen.style.display = "none";
-    joinScreen.style.display = "none";
-    questionView.style.display = "none";
-
     if (isHost) {
-        const prepView = document.getElementById("prep-view");
-        prepView.style.display = "block";
+        showScreen(prepView);
+
         document.getElementById("prep-question-number").innerText = `QUESTION ${data.questionNumber} OF ${data.totalQuestions}`;
         document.getElementById("prep-category").innerText = data.category;
         
@@ -212,9 +228,6 @@ socket.on(EVTS.PREP_PHASE, (data) => {
 });
 
 socket.on(EVTS.NEXT_QUESTION, (data) => {
-    hostScreen.style.display = "none";
-    joinScreen.style.display = "none";
-    
     currentChoiceIndex = null;
     currentQuestionData = data;
 
@@ -250,9 +263,8 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
     }, 100);
 
     if (isHost) {
-        document.getElementById("prep-view").style.display = "none";
-        questionView.style.display = "block";
-        playerScreen.style.display = "none";
+        showScreen(questionView);
+
         
         document.getElementById("question-category").innerText = data.category;
         document.getElementById("question-text").innerText = data.question;
@@ -277,8 +289,7 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
             bar.style.width = "0%";
         }, buffer * 1000);
     } else {
-        questionView.style.display = "none";
-        playerScreen.style.display = "block";
+        showScreen(playerScreen);
         // Ensure potential is visible and locked is hidden
         document.getElementById("player-potential-score").innerText = ""; // Clear any previous value
         document.getElementById("player-potential-score").style.display = "block"; 
@@ -396,12 +407,7 @@ socket.on(EVTS.GAME_OVER, (data) => {
 
 socket.on(EVTS.SHOW_SUMMARY, (data) => {
     console.log(`[Client] EVT_SHOW_SUMMARY received. Data:`, data);
-    hostScreen.style.display = "none";
-    joinScreen.style.display = "none";
-    playerScreen.style.display = "none";
-    questionView.style.display = "none";
-    document.getElementById("prep-view").style.display = "none";
-    summaryScreen.style.display = "block";
+    showScreen(summaryScreen);
 
     const list = document.getElementById("final-scoreboard-list");
     list.innerHTML = "";
@@ -446,8 +452,7 @@ socket.on(EVTS.SHOW_SUMMARY, (data) => {
 
 socket.on(EVTS.RETURN_TO_LOBBY, (data) => {
     console.log(`[Client] EVT_RETURN_TO_LOBBY received. Data:`, data);
-    summaryScreen.style.display = "none";
-    joinScreen.style.display = "block";
+    showScreen(joinScreen);
 });
 
 socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
@@ -457,14 +462,10 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
     myUuid = data.player.uuid; // Ensure myUuid is correct on reconnect
 
     // Hide all screens initially
-    joinScreen.style.display = "none";
-    hostScreen.style.display = "none";
-    playerScreen.style.display = "none";
-    questionView.style.display = "none";
-    document.getElementById("prep-view").style.display = "none";
+    showScreen(null);
 
     if (isHost) {
-        hostScreen.style.display = "block";
+        showScreen(hostScreen);
         document.getElementById("room-code-display").innerText = currentRoom;
         document.getElementById("start-btn").style.display = "inline-block"; // Assume start button visible on reconnect for host
 
@@ -483,7 +484,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
             // This part might need more granular control later
         } else if (data.gameData.currentPhase === "PREP_OR_RESULTS") {
             // Host reconnected during a prep phase or results display
-            document.getElementById("prep-view").style.display = "block";
+            showScreen(prepView);
             document.getElementById("prep-question-number").innerText = `QUESTION ${data.gameData.currentQuestionIndex + 1} OF ${data.gameData.totalQuestions}`;
             // You might need to derive category/difficulty from somewhere or retrieve it directly if available
             // For now, let\`s assume category is available in currentQuestionData if it was set.
@@ -491,7 +492,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
 
         } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {
             // Host reconnected during an active question
-            questionView.style.display = "block";
+            showScreen(questionView);
             document.getElementById("question-category").innerText = data.gameData.currentQuestionData.category;
             document.getElementById("question-text").innerText = data.gameData.currentQuestionData.question;
             const hostOptions = document.getElementById("host-options");
@@ -508,7 +509,7 @@ socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
         }
 
     } else { // Player reconnecting
-        playerScreen.style.display = "block";
+        showScreen(playerScreen);
         document.getElementById("player-status").innerText = `RECONNECTED AS ${data.player.name}`;
 
         // Player specific UI based on gameData.currentPhase
@@ -612,9 +613,7 @@ socket.on("connect", () => {
         });
     } else {
         console.log("No saved game state found. Showing join screen.");
-        joinScreen.style.display = "block";
-        hostScreen.style.display = "none";
-        playerScreen.style.display = "none";
+        showScreen(joinScreen);
     }
 });
 
