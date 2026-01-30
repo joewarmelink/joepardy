@@ -98,9 +98,47 @@ const EVTS = {
 };
 
 /**
+ * Renders the scoreboard (header and player entries) into a specified list element.
+ * @param {Array} leaderboardData - An array of player objects with score information.
+ * @param {string} listElementId - The ID of the UL element to render the scoreboard into.
+ */
+function renderScoreboard(leaderboardData, listElementId) {
+    const list = document.getElementById(listElementId);
+    list.innerHTML = "";
+
+    if (leaderboardData) {
+        // Add a header row for the scoreboard
+        const headerLi = document.createElement("li");
+        headerLi.style.padding = "10px";
+        headerLi.style.fontWeight = "bold";
+        headerLi.innerHTML = `
+            <span style="float: left;">Player</span>
+            <span style="float: right; width: 150px; text-align: right;">Total Score</span>
+            <span style="float: right; width: 100px; text-align: right;">Round Score</span>
+            <div style="clear: both;"></div>
+        `;
+        list.appendChild(headerLi);
+
+        leaderboardData.forEach((player, i) => {
+            const li = document.createElement("li");
+            li.style.padding = "10px";
+            li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+            li.innerHTML = `
+                <span style="float: left;">${i + 1}. ${player.name}</span>
+                <span style="float: right; width: 150px; text-align: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
+                <span style="float: right; width: 100px; text-align: right; color: var(--jeopardy-blue);">${player.currentRoundScore || 0}</span>
+                <div style="clear: both;"></div>
+            `;
+            list.appendChild(li);
+        });
+    }
+}
+
+/**
  * Transitions from Lobby to Host mode.
  */
 function setupHost() {
+
     isHost = true;
     showScreen(hostScreen);
     // Clear any previous auto-rejoin state before a manual host setup
@@ -189,35 +227,7 @@ socket.on(EVTS.PREP_PHASE, (data) => {
         }, 1000);
 
         // Render standings
-        const list = document.getElementById("scoreboard-list");
-        list.innerHTML = "";
-
-        if (data.leaderboard) {
-            // Add a header row for the scoreboard
-            const headerLi = document.createElement("li");
-            headerLi.style.padding = "10px";
-            headerLi.style.fontWeight = "bold";
-            headerLi.innerHTML = `
-                <span style="float: left;">Player</span>
-                <span style="float: right; width: 150px; text-align: right;">Total Score</span>
-                <span style="float: right; width: 100px; text-align: right;">Round Score</span>
-                <div style="clear: both;"></div>
-            `;
-            list.appendChild(headerLi);
-
-            data.leaderboard.forEach((player, i) => {
-                const li = document.createElement("li");
-                li.style.padding = "10px";
-                li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
-                li.innerHTML = `
-                    <span style="float: left;">${i + 1}. ${player.name}</span>
-                    <span style="float: right; width: 150px; text-align: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
-                    <span style="float: right; width: 100px; text-align: right; color: var(--jeopardy-blue);">${player.currentRoundScore || 0}</span>
-                    <div style="clear: both;"></div>
-                `;
-                list.appendChild(li);
-            });
-        }
+        renderScoreboard(data.leaderboard, "scoreboard-list");
     } else {
         document.getElementById("player-status").innerText = `GET READY FOR QUESTION ${data.questionNumber}!`;
         document.getElementById("player-question-text").style.display = "none";
@@ -409,35 +419,7 @@ socket.on(EVTS.SHOW_SUMMARY, (data) => {
     console.log(`[Client] EVT_SHOW_SUMMARY received. Data:`, data);
     showScreen(summaryScreen);
 
-    const list = document.getElementById("final-scoreboard-list");
-    list.innerHTML = "";
-
-    if (data.leaderboard) {
-        // Add a header row for the scoreboard
-        const headerLi = document.createElement("li");
-        headerLi.style.padding = "10px";
-        headerLi.style.fontWeight = "bold";
-        headerLi.innerHTML = `
-            <span style="float: left;">Player</span>
-            <span style="float: right; width: 150px; text-align: right;">Total Score</span>
-            <span style="float: right; width: 100px; text-align: right;">Round Score</span>
-            <div style="clear: both;"></div>
-        `;
-        list.appendChild(headerLi);
-
-        data.leaderboard.forEach((player, i) => {
-            const li = document.createElement("li");
-            li.style.padding = "10px";
-            li.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
-            li.innerHTML = `
-                <span style="float: left;">${i + 1}. ${player.name}</span>
-                <span style="float: right; width: 150px; text-align: right; color: var(--jeopardy-yellow);">${player.score || 0}</span>
-                <span style="float: right; width: 100px; text-align: right; color: var(--jeopardy-blue);">${player.currentRoundScore || 0}</span>
-                <div style="clear: both;"></div>
-            `;
-            list.appendChild(li);
-        });
-    }
+    renderScoreboard(data.leaderboard, "final-scoreboard-list");
 
     let timeLeft = data.summaryScreenTime;
     const countdownEl = document.getElementById("summary-countdown");
