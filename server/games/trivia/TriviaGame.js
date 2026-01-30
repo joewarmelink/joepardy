@@ -322,6 +322,32 @@ class TriviaGame {
     this.timers.forEach(clearTimeout);
     this.timers = [];
   }
+
+  /**
+   * Retrieves the current state of the game for reconnection purposes.
+   * @returns {Object} The current game state.
+   */
+  getCurrentState() {
+    const gameState = {
+      isGameActive: this.isGameActive,
+      currentQuestionIndex: this.currentQuestionIndex,
+      totalQuestions: this.questions.length,
+      questionStartTime: this.questionStartTime,
+      currentQuestion: this.currentQuestion ? {
+        question: this.currentQuestion.question,
+        options: this.currentQuestion.options,
+        category: this.currentQuestion.category,
+        difficulty: this.currentQuestion.difficulty,
+      } : null,
+      gameConfig: {
+        timeToAnswer: config.games.trivia.timeToAnswer,
+        readingBufferTime: config.games.trivia.readingBufferTime,
+        scoring: config.games.trivia.scoring,
+        resultTime: config.games.trivia.resultTime
+      }
+    };
+    return gameState;
+  }
 }
 
 module.exports = TriviaGame;

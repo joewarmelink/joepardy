@@ -87,6 +87,15 @@ class RoomManager {
   }
 
   /**
+   * Retrieves the full state of a room.
+   * @param {string} roomCode - The code of the room.
+   * @returns {Promise<Object|undefined>} The room state object.
+   */
+  async getState(roomCode) {
+    return await this.repository.getState(roomCode);
+  }
+
+  /**
    * Retrieves all players currently in a room.
    * @param {string} roomCode - The code of the room.
    * @returns {Promise<Array|undefined>} An array of player objects.

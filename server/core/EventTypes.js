@@ -27,6 +27,7 @@ module.exports = {
   EVT_SHOW_SCOREBOARD: 'game:show_scoreboard',
   EVT_GAME_OVER: 'game:over',
   EVT_ERROR: 'platform:error',
+  EVT_RECONNECT_SUCCESS: 'reconnect:success',
 
   // --- System Events ---
   SYSTEM_DISCONNECT: 'system:disconnect',

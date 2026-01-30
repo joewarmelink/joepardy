@@ -42,7 +42,8 @@ const EVTS = {
     QUESTION_RESULTS: "game:question_results",
     SHOW_SCOREBOARD: "game:show_scoreboard",
     GAME_OVER: "game:over",
-    ERROR: "platform:error"
+    ERROR: "platform:error",
+    RECONNECT_SUCCESS: "reconnect:success"
 };
 
 /**
@@ -52,6 +53,14 @@ function setupHost() {
     isHost = true;
     joinScreen.style.display = "none";
     hostScreen.style.display = "block";
+    // Clear any previous auto-rejoin state before a manual host setup
+    localStorage.removeItem("playerRoomCode");
+    localStorage.removeItem("playerUuid");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerRole");
+    localStorage.removeItem("hostRoomCode");
+    localStorage.removeItem("hostUuid");
+    localStorage.removeItem("hostRole");
     socket.emit(CMDS.CREATE_ROOM, {});
 }
 
@@ -68,6 +77,14 @@ function joinRoom() {
     }
 
     currentRoom = code;
+    // Clear any previous auto-rejoin state before a manual join
+    localStorage.removeItem("playerRoomCode");
+    localStorage.removeItem("playerUuid");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerRole");
+    localStorage.removeItem("hostRoomCode");
+    localStorage.removeItem("hostUuid");
+    localStorage.removeItem("hostRole");
     socket.emit(CMDS.JOIN_ROOM, {
         roomCode: code,
         player: { uuid: myUuid, name: name, role: "player" }
@@ -372,6 +389,187 @@ socket.on(EVTS.GAME_OVER, (data) => {
     window.location.reload(); // Reloads to the join screen
 });
 
+socket.on(EVTS.RECONNECT_SUCCESS, (data) => {
+    console.log("EVT_RECONNECT_SUCCESS received:", data);
+    currentRoom = data.roomCode;
+    isHost = (data.player.role === "host");
+    myUuid = data.player.uuid; // Ensure myUuid is correct on reconnect
+
+    // Hide all screens initially
+    joinScreen.style.display = "none";
+    hostScreen.style.display = "none";
+    playerScreen.style.display = "none";
+    questionView.style.display = "none";
+    document.getElementById("prep-view").style.display = "none";
+
+    if (isHost) {
+        hostScreen.style.display = "block";
+        document.getElementById("room-code-display").innerText = currentRoom;
+        document.getElementById("start-btn").style.display = "inline-block"; // Assume start button visible on reconnect for host
+
+        const list = document.getElementById("host-player-list");
+        list.innerHTML = ""; // Clear existing list
+        data.players.filter(p => p.role !== "host").forEach(player => {
+            const li = document.createElement("li");
+            li.id = `player-${player.uuid}`;
+            li.innerText = player.name;
+            list.appendChild(li);
+        });
+
+        // Host specific UI based on gameData.currentPhase
+        if (data.gameData.currentPhase === "GAME_STARTED" || data.gameData.currentPhase === "LOBBY") {
+            // Host is in lobby or game just started, show lobby view
+            // This part might need more granular control later
+        } else if (data.gameData.currentPhase === "PREP_OR_RESULTS") {
+            // Host reconnected during a prep phase or results display
+            document.getElementById("prep-view").style.display = "block";
+            document.getElementById("prep-question-number").innerText = `QUESTION ${data.gameData.currentQuestionIndex + 1} OF ${data.gameData.totalQuestions}`;
+            // You might need to derive category/difficulty from somewhere or retrieve it directly if available
+            // For now, let's assume category is available in currentQuestionData if it was set.
+            // The actual timer for prep phase will restart naturally via prepareNextQuestion from server.
+
+        } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {
+            // Host reconnected during an active question
+            questionView.style.display = "block";
+            document.getElementById("question-category").innerText = data.gameData.currentQuestionData.category;
+            document.getElementById("question-text").innerText = data.gameData.currentQuestionData.question;
+            const hostOptions = document.getElementById("host-options");
+            hostOptions.innerHTML = "";
+            data.gameData.currentQuestionData.options.forEach((opt, i) => {
+                const div = document.createElement("div");
+                div.className = "option-btn";
+                div.id = `host-opt-${i}`;
+                div.innerText = opt;
+                hostOptions.appendChild(div);
+            });
+            // Re-initialize timer visual based on gameConfig.totalTime and elapsed time
+            // This would require more sophisticated client-side timer sync with server.
+        }
+
+    } else { // Player reconnecting
+        playerScreen.style.display = "block";
+        document.getElementById("player-status").innerText = `RECONNECTED AS ${data.player.name}`;
+
+        // Player specific UI based on gameData.currentPhase
+        if (data.gameData.currentPhase === "GAME_STARTED" || data.gameData.currentPhase === "LOBBY") {
+            // Player is in lobby or game just started
+            document.getElementById("player-question-text").style.display = "none";
+            document.getElementById("player-options").innerHTML = "";
+            document.getElementById("player-potential-score").style.display = "none";
+            document.getElementById("player-locked-score").innerText = `SCORE: ${data.player.score || 0}`;
+            document.getElementById("player-locked-score").style.display = "block";
+        } else if (data.gameData.currentPhase === "PREP_OR_RESULTS") {
+            // Player reconnected during a prep phase or results display
+            document.getElementById("player-status").innerText = `GET READY FOR QUESTION ${data.gameData.currentQuestionIndex + 1}!`;
+            document.getElementById("player-question-text").style.display = "none";
+            document.getElementById("player-options").innerHTML = "";
+            document.getElementById("player-potential-score").style.display = "none";
+            document.getElementById("player-locked-score").innerText = `SCORE: ${data.player.score || 0}`;
+            document.getElementById("player-locked-score").style.display = "block";
+        } else if (data.gameData.currentPhase === "QUESTION_ACTIVE") {
+            // Player reconnected during an active question
+            document.getElementById("player-question-text").innerText = data.gameData.currentQuestionData.question;
+            document.getElementById("player-question-text").style.display = "block";
+            const playerOptions = document.getElementById("player-options");
+            playerOptions.innerHTML = "";
+            data.gameData.currentQuestionData.options.forEach((opt, i) => {
+                const btn = document.createElement("button");
+                btn.className = "option-btn";
+                btn.id = `player-opt-${i}`;
+                btn.innerText = opt;
+                btn.disabled = false;
+                // Re-enable click listener with existing answer logic
+                btn.onclick = () => {
+                    currentChoiceIndex = i;
+                    btn.classList.add("selected");
+                    document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
+                    socket.emit(CMDS.SUBMIT_ANSWER, {
+                        roomCode: currentRoom,
+                        playerUuid: myUuid,
+                        answerIndex: i
+                    });
+                    document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
+                };
+                playerOptions.appendChild(btn);
+            });
+            document.getElementById("player-potential-score").style.display = "block"; // Show potential score
+            document.getElementById("player-locked-score").innerText = `SCORE: ${data.player.score || 0}`;
+            document.getElementById("player-locked-score").style.display = "block";
+
+            // Re-initialize the potential score interval for the player
+            if (valueInterval) clearInterval(valueInterval);
+            const reconnectTime = Date.now();
+            const initialElapsedTime = (reconnectTime - data.gameData.questionStartTime) / 1000;
+            const buffer = (data.gameData.gameConfig.readingBufferTime || 0);
+            const total = data.gameData.gameConfig.timeToAnswer;
+            const base = data.gameData.gameConfig.scoring.basePoints;
+            const bonus = data.gameData.gameConfig.scoring.speedBonusMax;
+
+            valueInterval = setInterval(() => {
+                const elapsed = (Date.now() - reconnectTime) / 1000 + initialElapsedTime; // Add initial elapsed time
+                const effectiveElapsed = Math.max(0, elapsed - buffer);
+                const timeFactor = (total - effectiveElapsed) / total;
+                const liveValue = Math.floor(base + (bonus * Math.max(0, timeFactor)));
+                
+                document.getElementById("player-potential-score").innerText = `POTENTIAL SCORE: +${liveValue}`;
+                
+                if (effectiveElapsed >= total) {
+                    clearInterval(valueInterval);
+                    document.getElementById("player-potential-score").innerText = "POTENTIAL SCORE: +0";
+                }
+            }, 100);
+        }
+    }
+});
+
+// Auto-rejoin logic on socket connect
+socket.on("connect", () => {
+    const playerRoomCode = localStorage.getItem("playerRoomCode");
+    const playerUuid = localStorage.getItem("playerUuid");
+    const playerName = localStorage.getItem("playerName");
+    const playerRole = localStorage.getItem("playerRole");
+
+    const hostRoomCode = localStorage.getItem("hostRoomCode");
+    const hostUuid = localStorage.getItem("hostUuid");
+    const hostRole = localStorage.getItem("hostRole");
+
+    if (playerRoomCode && playerUuid && playerName && playerRole) {
+        console.log("Attempting to rejoin as player...");
+        isHost = false;
+        currentRoom = playerRoomCode;
+        socket.emit(CMDS.JOIN_ROOM, {
+            roomCode: playerRoomCode,
+            player: { uuid: playerUuid, name: playerName, role: playerRole }
+        });
+    } else if (hostRoomCode && hostUuid && hostRole) {
+        console.log("Attempting to rejoin as host...");
+        isHost = true;
+        currentRoom = hostRoomCode;
+        socket.emit(CMDS.JOIN_ROOM, {
+            roomCode: hostRoomCode,
+            player: { uuid: hostUuid, name: "HOST", role: hostRole }
+        });
+    } else {
+        console.log("No saved game state found. Showing join screen.");
+        joinScreen.style.display = "block";
+        hostScreen.style.display = "none";
+        playerScreen.style.display = "none";
+    }
+});
+
 socket.on(EVTS.ERROR, (data) => {
-    alert(data.message);
+    console.error("Server Error:", data.message);
+    // Optionally, if the error is a "Room not found" during auto-reconnect,
+    // we might want to clear localStorage to prevent repeated attempts.
+    if (data.message === "Room not found") {
+        localStorage.removeItem("playerRoomCode");
+        localStorage.removeItem("playerUuid");
+        localStorage.removeItem("playerName");
+        localStorage.removeItem("playerRole");
+        localStorage.removeItem("hostRoomCode");
+        localStorage.removeItem("hostUuid");
+        localStorage.removeItem("hostRole");
+        // Reload the page to reset the UI to the join screen cleanly
+        // window.location.reload(); // Re-enable if you want automatic reset to join screen
+    }
 });

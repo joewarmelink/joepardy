@@ -46,12 +46,33 @@ io.on('connection', (socket) => {
 eventBus.on(EventTypes.CMD_JOIN_ROOM, async (data) => {
   const { roomCode, player, socketId } = data;
   
+  // Check if player already exists in the room (reconnection attempt)
+  const existingPlayer = await roomManager.getPlayerByUuid(roomCode, player.uuid);
+  const isReconnect = !!existingPlayer && (existingPlayer.socketId !== socketId);
+
   const success = await roomManager.joinRoom(roomCode, player, socketId);
   if (success) {
-    eventBus.emit(EventTypes.EVT_PLAYER_JOINED, {
-      roomCode,
-      player
-    });
+    if (isReconnect) {
+      console.log(`Player ${player.name} (UUID: ${player.uuid}) reconnected to room ${roomCode}. Sending reconnect success.`);
+      const game = activeGames.get(roomCode);
+      if (game) {
+        const fullRoomState = await roomManager.getState(roomCode); // Assuming getState exists or can be added
+        const gameData = game.getCurrentState(); // Need to implement this in TriviaGame
+        io.to(socketId).emit(EventTypes.EVT_RECONNECT_SUCCESS, {
+          roomCode,
+          player: fullRoomState.players[player.uuid],
+          gameData: gameData, // Send game-specific state
+          players: Object.values(fullRoomState.players) // Send updated player list
+        });
+      } else {
+        io.to(socketId).emit(EventTypes.EVT_ERROR, { message: 'Reconnected to room, but game is not active.' });
+      }
+    } else {
+      eventBus.emit(EventTypes.EVT_PLAYER_JOINED, {
+        roomCode,
+        player
+      });
+    }
   } else {
     io.to(socketId).emit(EventTypes.EVT_ERROR, { message: 'Room not found' });
   }
