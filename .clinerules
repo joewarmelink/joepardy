@@ -21,28 +21,16 @@ JoePARDY! is a professional-grade, JackBox-style trivia platform featuring a mod
 - **Source Control**: Git is used for version control, with a `.gitignore` to exclude unnecessary files like `node_modules`.
 - **HTML Entity Decoding**: The `he` library is used for robust decoding of HTML entities in trivia questions and answers.
 - **Coding Style**: Consistent use of double quotes (`"`) for strings in JavaScript files.
-  - **Tool Usage Best Practices (replace_in_file) for Cline 3.17.9+ (MANDATORY FORMAT)**:
-    - **IMPORTANT**: As of Cline version 3.17.9, the `replace_in_file` tool *exclusively* uses the following `diff` parameter format. *Any deviation will result in failure*.
+  - **Tool Usage Best Practices (replace_in_file) for Cline 3.17.9+**:
+    - **IMPORTANT**: As of Cline version 3.17.9, the `replace_in_file` tool *exclusively* uses the following `diff` parameter format for its `SEARCH` and `REPLACE` blocks:
       ```
       ------- SEARCH
-      [exact content to find, including all whitespace, invisible characters, and line endings (e.g., trailing \\n)]
+      [content to find]
       =======
-      [new content to replace with, including all whitespace, invisible characters, and line endings (e.g., trailing \\n)]
+      [new content to replace with]
       +++++++ REPLACE
       ```
-    - **CRITICAL `SEARCH` BLOCK ACCURACY**: The content provided in the `SEARCH` block *must* be an exact, character-for-character match to the content in the file. Pay extreme attention to:
-      - **Leading/Trailing Whitespace**: Any spaces or tabs before or after the text.
-      - **Invisible Characters**: Such as non-breaking spaces.
-      - **Line Endings**: Always include the exact line ending (`\\n` for LF, `\\r\\n` for CRLF if applicable, though LF is preferred in this project due to `core.autocrlf input`).
-    - **Example Usage (Replacing a single line):**
-      ```python
-      print(default_api.replace_in_file(
-          absolutePath = "path/to/your/file.js",
-          diff = """\n------ SEARCH\nconsole.log(\"old line\");\\n\n=======\nconsole.log(\"new line\");\\n\n+++++++ REPLACE\n"""
-      ))
-      ```
-    - **Avoid `write_to_file`**: *Never* fall back to `read_file` followed by `write_to_file` for targeted changes. Chain multiple `replace_in_file` calls for complex operations.\n
-    - **Verification**: Always verify changes after `replace_in_file` execution by re-reading the file.
+    - **Note**: This format uses `------- SEARCH` and `+++++++ REPLACE` as delimiters, replacing older conventions.
 
 ### Testing and Verification Best Practices
 - **Local Server Execution**: To test the application locally, the developer should run `node index.js` from the project root. This is the preferred method for starting the server to verify changes.
