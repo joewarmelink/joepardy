@@ -155,6 +155,34 @@ function animateTimerBar(duration, bufferTime = 0) {
     }, bufferTime * 1000);
 }
 
+/**
+ * Handles when a player selects an answer option.
+ * Highlights the selection, disables all buttons, submits the answer to server.
+ * @param {number} answerIndex - The index of the selected answer.
+ */
+function handlePlayerAnswerSelection(answerIndex) {
+    currentChoiceIndex = answerIndex;
+    
+    // Highlight the selected button
+    const selectedBtn = document.getElementById(`player-opt-${answerIndex}`);
+    if (selectedBtn) {
+        selectedBtn.classList.add("selected");
+    }
+    
+    // Disable all answer buttons
+    document.querySelectorAll("#player-options button").forEach(btn => btn.disabled = true);
+    
+    // Submit answer to server
+    socket.emit(CMDS.SUBMIT_ANSWER, {
+        roomCode: currentRoom,
+        playerUuid: myUuid,
+        answerIndex: answerIndex
+    });
+    
+    // Update player status
+    document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -426,20 +454,7 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
         qText.innerText = data.question;
         qText.style.display = "block";
 
-        renderOptionButtons(data.options, "player-options", true, (index) => {
-            currentChoiceIndex = index;
-            const selectedBtn = document.getElementById(`player-opt-${index}`);
-            if (selectedBtn) {
-                selectedBtn.classList.add("selected");
-            }
-            document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
-            socket.emit(CMDS.SUBMIT_ANSWER, {
-                roomCode: currentRoom,
-                playerUuid: myUuid,
-                answerIndex: index
-            });
-            document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
-        });
+        renderOptionButtons(data.options, "player-options", true, handlePlayerAnswerSelection);
     }
 });
 
