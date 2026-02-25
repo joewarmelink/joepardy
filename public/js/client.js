@@ -132,6 +132,29 @@ function renderOptionButtons(options, parentElementId, isPlayer, onClickHandler 
     });
 }
 
+/**
+ * Animates the timer progress bar from full to empty over a specified duration.
+ * Uses CSS transitions for smooth, reliable animation with an optional reading buffer.
+ * @param {number} duration - Total time for the animation in seconds.
+ * @param {number} bufferTime - Delay before animation starts in seconds (default: 0).
+ */
+function animateTimerBar(duration, bufferTime = 0) {
+    const bar = document.getElementById("timer-progress");
+    
+    // Reset to full width without animation
+    bar.style.transition = "none";
+    bar.style.width = "100%";
+    
+    // Force browser reflow to ensure the reset is applied
+    bar.offsetHeight;
+    
+    // After buffer time, smoothly transition to empty
+    setTimeout(() => {
+        bar.style.transition = `width ${duration}s linear`;
+        bar.style.width = "0%";
+    }, bufferTime * 1000);
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
