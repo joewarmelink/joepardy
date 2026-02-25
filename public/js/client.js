@@ -407,21 +407,13 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
     if (isHost) {
         showScreen(questionView);
 
-        
         document.getElementById("question-category").innerText = data.category;
         document.getElementById("question-text").innerText = data.question;
         
         renderOptionButtons(data.options, "host-options", false);
 
-        const bar = document.getElementById("timer-progress");
-        bar.style.transition = "none";
-        bar.style.width = "100%";
-        
-        // Wait for reading buffer before starting transition
-        setTimeout(() => {
-            bar.style.transition = `width ${data.totalTime}s linear`;
-            bar.style.width = "0%";
-        }, buffer * 1000);
+        // Animate the timer bar with buffer delay
+        animateTimerBar(data.totalTime, buffer);
     } else {
         showScreen(playerScreen);
         // Ensure potential is visible and locked is hidden
