@@ -184,6 +184,84 @@ function handlePlayerAnswerSelection(answerIndex) {
 }
 
 /**
+ * Starts the live value interval for displaying potential score to players or current worth to host.
+ * @param {object} data - Question data containing timing and scoring parameters.
+ */
+function startLiveValueInterval(data) {
+    const buffer = data.readingBufferTime || 0;
+    const total = data.totalTime;
+    const startTime = Date.now();
+    const base = data.scoring.basePoints;
+    const bonus = data.scoring.speedBonusMax;
+
+    if (valueInterval) clearInterval(valueInterval);
+    
+    valueInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const effectiveElapsed = Math.max(0, elapsed - buffer);
+        const timeFactor = (total - effectiveElapsed) / total;
+        const liveValue = Math.floor(base + (bonus * Math.max(0, timeFactor)));
+        
+        if (isHost) {
+            const vd = document.getElementById("question-value");
+            if (vd) vd.innerText = `WORTH: ${liveValue}`;
+        } else {
+            document.getElementById("player-potential-score").innerText = `POTENTIAL SCORE: +${liveValue}`;
+            document.getElementById("player-potential-score").style.display = "block";
+        }
+        
+        if (effectiveElapsed >= total) {
+            clearInterval(valueInterval);
+            if (isHost) {
+                const vd = document.getElementById("question-value");
+                if (vd) vd.innerText = "WORTH: 0";
+            }
+        }
+    }, 100);
+}
+
+/**
+ * Displays the host question screen with timer bar, live score updates, and answer options.
+ * @param {object} data - Question data from server including category, question text, options, timing, and scoring.
+ */
+function showHostQuestionUI(data) {
+    showScreen(questionView);
+    
+    document.getElementById("question-category").innerText = data.category;
+    document.getElementById("question-text").innerText = data.question;
+    
+    renderOptionButtons(data.options, "host-options", false);
+    
+    const buffer = data.readingBufferTime || 0;
+    animateTimerBar(data.totalTime, buffer);
+    
+    startLiveValueInterval(data);
+}
+
+/**
+ * Displays the player question screen with answer buttons, question text, and potential score display.
+ * @param {object} data - Question data from server including question text, options, and scoring parameters.
+ */
+function showPlayerQuestionUI(data) {
+    showScreen(playerScreen);
+    
+    // Reset and show potential score display
+    document.getElementById("player-potential-score").innerText = "";
+    document.getElementById("player-potential-score").style.display = "block";
+    document.getElementById("player-locked-score").style.display = "none";
+    
+    document.getElementById("player-status").innerText = "CHOOSE THE CORRECT ANSWER!";
+    
+    const qText = document.getElementById("player-question-text");
+    qText.innerText = data.question;
+    qText.style.display = "block";
+    
+    renderOptionButtons(data.options, "player-options", true, handlePlayerAnswerSelection);
+    
+    startLiveValueInterval(data);
+}
+
+/**
  * Displays the host lobby screen with room code and player list.
  * @param {string} roomCode - The room code to display.
  */
@@ -417,60 +495,10 @@ socket.on(EVTS.NEXT_QUESTION, (data) => {
     currentChoiceIndex = null;
     currentQuestionData = data;
 
-    const buffer = (data.readingBufferTime || 0);
-    const total = data.totalTime;
-    const startTime = Date.now();
-    const base = data.scoring.basePoints;
-    const bonus = data.scoring.speedBonusMax;
-
-    if (valueInterval) clearInterval(valueInterval);
-    
-    valueInterval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const effectiveElapsed = Math.max(0, elapsed - buffer);
-        const timeFactor = (total - effectiveElapsed) / total;
-        const liveValue = Math.floor(base + (bonus * Math.max(0, timeFactor)));
-        
-        if (isHost) {
-            const vd = document.getElementById("question-value");
-            if (vd) vd.innerText = `WORTH: ${liveValue}`;
-        } else { // Display for player
-            document.getElementById("player-potential-score").innerText = `POTENTIAL SCORE: +${liveValue}`;
-            document.getElementById("player-potential-score").style.display = "block"; // Always show potential score here
-        }
-        
-        if (effectiveElapsed >= total) {
-            clearInterval(valueInterval);
-            if (isHost) {
-                const vd = document.getElementById("question-value");
-                if (vd) vd.innerText = "WORTH: 0";
-            }
-        }
-    }, 100);
-
     if (isHost) {
-        showScreen(questionView);
-
-        document.getElementById("question-category").innerText = data.category;
-        document.getElementById("question-text").innerText = data.question;
-        
-        renderOptionButtons(data.options, "host-options", false);
-
-        // Animate the timer bar with buffer delay
-        animateTimerBar(data.totalTime, buffer);
+        showHostQuestionUI(data);
     } else {
-        showScreen(playerScreen);
-        // Ensure potential is visible and locked is hidden
-        document.getElementById("player-potential-score").innerText = ""; // Clear any previous value
-        document.getElementById("player-potential-score").style.display = "block"; 
-        document.getElementById("player-locked-score").style.display = "none";
-
-        document.getElementById("player-status").innerText = "CHOOSE THE CORRECT ANSWER!";
-        const qText = document.getElementById("player-question-text");
-        qText.innerText = data.question;
-        qText.style.display = "block";
-
-        renderOptionButtons(data.options, "player-options", true, handlePlayerAnswerSelection);
+        showPlayerQuestionUI(data);
     }
 });
 
