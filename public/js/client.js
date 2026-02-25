@@ -337,6 +337,22 @@ function showPlayerLobbyUI(playerName) {
     document.getElementById("player-status").innerText = `IN THE LOBBY AS ${playerName}`;
 }
 
+/**
+ * Displays the summary screen with final scoreboard and countdown to return to lobby.
+ * @param {object} data - Summary data including leaderboard and summaryScreenTime.
+ */
+function showSummaryUI(data) {
+    console.log(`[Client] EVT_SHOW_SUMMARY received. Data:`, data);
+    showScreen(summaryScreen);
+
+    renderScoreboard(data.leaderboard, "final-scoreboard-list");
+
+    const countdownEl = document.getElementById("summary-countdown");
+    startCountdown(countdownEl, data.summaryScreenTime, () => {
+        console.log("Summary countdown finished.");
+    }, (time) => `Return to lobby in ${time}...`);
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -596,16 +612,7 @@ socket.on(EVTS.GAME_OVER, (data) => {
 });
 
 socket.on(EVTS.SHOW_SUMMARY, (data) => {
-    console.log(`[Client] EVT_SHOW_SUMMARY received. Data:`, data);
-    showScreen(summaryScreen);
-
-    renderScoreboard(data.leaderboard, "final-scoreboard-list");
-
-    const countdownEl = document.getElementById("summary-countdown");
-    startCountdown(countdownEl, data.summaryScreenTime, () => {
-        // Optional callback if needed after summary countdown finishes
-        console.log("Summary countdown finished.");
-    }, (time) => `Return to lobby in ${time}...`);
+    showSummaryUI(data);
 });
 
 socket.on(EVTS.RETURN_TO_LOBBY, (data) => {
