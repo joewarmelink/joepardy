@@ -183,6 +183,25 @@ function handlePlayerAnswerSelection(answerIndex) {
     document.getElementById("player-status").innerText = "ANSWER LOCKED IN!";
 }
 
+/**
+ * Displays the host lobby screen with room code and player list.
+ * @param {string} roomCode - The room code to display.
+ */
+function showHostLobbyUI(roomCode) {
+    showScreen(hostScreen);
+    document.getElementById("room-code-display").innerText = roomCode;
+    document.getElementById("start-btn").style.display = "inline-block";
+}
+
+/**
+ * Displays the player lobby screen with welcome message.
+ * @param {string} playerName - The player's name to display.
+ */
+function showPlayerLobbyUI(playerName) {
+    showScreen(playerScreen);
+    document.getElementById("player-status").innerText = `IN THE LOBBY AS ${playerName}`;
+}
+
 // Naming constants to match server/core/EventTypes.js
 const CMDS = {
     CREATE_ROOM: "room:create",
@@ -358,8 +377,7 @@ function startGame() {
 
 socket.on(EVTS.ROOM_CREATED, (data) => {
     currentRoom = data.roomCode;
-    document.getElementById("room-code-display").innerText = currentRoom;
-    document.getElementById("start-btn").style.display = "inline-block";
+    showHostLobbyUI(currentRoom);
     
     // Host joins the socket room to hear broadcasts
     socket.emit(CMDS.JOIN_ROOM, {
@@ -382,9 +400,7 @@ socket.on(EVTS.PLAYER_JOINED, (data) => {
             list.appendChild(li);
         }
     } else {
-        showScreen(playerScreen);
-        document.getElementById("player-status").innerText = `IN THE LOBBY AS ${data.player.name}`;
-
+        showPlayerLobbyUI(data.player.name);
         setPlayerLocalStorage(data.roomCode, data.player.uuid, data.player.name, data.player.role);
     }
 });
