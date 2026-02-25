@@ -262,6 +262,63 @@ function showPlayerQuestionUI(data) {
 }
 
 /**
+ * Displays the host results screen by highlighting the correct answer.
+ * @param {object} data - Results data including correctIndex.
+ */
+function showHostResultsUI(data) {
+    if (valueInterval) clearInterval(valueInterval);
+    
+    const correctOpt = document.getElementById(`host-opt-${data.correctIndex}`);
+    if (correctOpt) {
+        correctOpt.classList.add("correct");
+    }
+}
+
+/**
+ * Displays the player results screen with correct/incorrect feedback and score update.
+ * @param {object} data - Results data including correctIndex and playerScoresThisRound.
+ */
+function showPlayerResultsUI(data) {
+    if (valueInterval) clearInterval(valueInterval);
+    
+    console.log("EVTS.QUESTION_RESULTS received:", data);
+    console.log("myUuid:", myUuid);
+
+    document.getElementById("player-potential-score").style.display = "none";
+
+    // Highlight correct and incorrect on player screen
+    if (currentChoiceIndex !== null) {
+        const selectedBtn = document.getElementById(`player-opt-${currentChoiceIndex}`);
+        if (selectedBtn) {
+            if (currentChoiceIndex === data.correctIndex) {
+                selectedBtn.classList.remove("selected");
+                selectedBtn.classList.add("correct");
+                document.getElementById("player-status").innerText = "CORRECT!";
+            } else {
+                selectedBtn.classList.remove("selected");
+                selectedBtn.classList.add("incorrect");
+                document.getElementById("player-status").innerText = "INCORRECT!";
+            }
+        }
+    } else {
+        document.getElementById("player-status").innerText = "TIME IS UP!";
+    }
+
+    const correctBtn = document.getElementById(`player-opt-${data.correctIndex}`);
+    if (correctBtn) {
+        correctBtn.classList.add("correct");
+    }
+    
+    document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
+
+    // Display actual score for the round
+    if (data.playerScoresThisRound && data.playerScoresThisRound[myUuid] !== undefined) {
+        document.getElementById("player-locked-score").innerText = `SCORE: +${data.playerScoresThisRound[myUuid]}`;
+        document.getElementById("player-locked-score").style.display = "block";
+    }
+}
+
+/**
  * Displays the host lobby screen with room code and player list.
  * @param {string} roomCode - The room code to display.
  */
@@ -522,49 +579,10 @@ socket.on(EVTS.ANSWER_ACCEPTED, (data) => {
 });
 
 socket.on(EVTS.QUESTION_RESULTS, (data) => {
-    if (valueInterval) clearInterval(valueInterval);
     if (isHost) {
-        const correctOpt = document.getElementById(`host-opt-${data.correctIndex}`);
-        if (correctOpt) {
-            correctOpt.classList.add("correct");
-        }
+        showHostResultsUI(data);
     } else {
-        // DEBUG: Log received data
-        console.log("EVTS.QUESTION_RESULTS received:", data);
-        console.log("myUuid:", myUuid);
-
-        document.getElementById("player-potential-score").style.display = "none"; // Hide potential score
-
-        // Highlight correct and incorrect on player screen
-        if (currentChoiceIndex !== null) {
-            const selectedBtn = document.getElementById(`player-opt-${currentChoiceIndex}`);
-            if (selectedBtn) {
-                if (currentChoiceIndex === data.correctIndex) {
-                    selectedBtn.classList.remove("selected");
-                    selectedBtn.classList.add("correct");
-                    document.getElementById("player-status").innerText = "CORRECT!";
-                } else {
-                    selectedBtn.classList.remove("selected");
-                    selectedBtn.classList.add("incorrect");
-                    document.getElementById("player-status").innerText = "INCORRECT!";
-                }
-            }
-        } else {
-            document.getElementById("player-status").innerText = "TIME IS UP!";
-        }
-
-        const correctBtn = document.getElementById(`player-opt-${data.correctIndex}`);
-        if (correctBtn) {
-            correctBtn.classList.add("correct");
-        }
-        
-        document.querySelectorAll("#player-options button").forEach(b => b.disabled = true);
-
-        // Display actual score for the round
-        if (data.playerScoresThisRound && data.playerScoresThisRound[myUuid] !== undefined) {
-            document.getElementById("player-locked-score").innerText = `SCORE: +${data.playerScoresThisRound[myUuid]}`;
-            document.getElementById("player-locked-score").style.display = "block"; // Keep locked score visible, but update text
-        }
+        showPlayerResultsUI(data);
     }
 });
 
