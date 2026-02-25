@@ -87,4 +87,47 @@ describe('SocketRouter', () => {
       expect(mockIO.emit).toHaveBeenCalledWith(evt.type, evt.data);
     });
   });
+
+  test('should make socket join room when CMD_JOIN_ROOM is received with roomCode', () => {
+    router.registerSocket(mockSocket);
+    
+    const joinRoomHandler = mockSocket.on.mock.calls.find(call => call[0] === EventTypes.CMD_JOIN_ROOM)[1];
+    const testData = { roomCode: 'ABCD', playerName: 'Alice' };
+    
+    joinRoomHandler(testData);
+    
+    expect(mockSocket.join).toHaveBeenCalledWith('ABCD');
+    expect(mockBus.emit).toHaveBeenCalledWith(EventTypes.CMD_JOIN_ROOM, expect.objectContaining({
+      roomCode: 'ABCD',
+      playerName: 'Alice',
+      socketId: 'socket-123'
+    }));
+  });
+
+  test('should emit disconnect event to bus when socket disconnects', () => {
+    router.registerSocket(mockSocket);
+    
+    const disconnectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'disconnect')[1];
+    
+    disconnectHandler();
+    
+    expect(mockBus.emit).toHaveBeenCalledWith(EventTypes.SYSTEM_DISCONNECT, {
+      socketId: 'socket-123'
+    });
+  });
+
+  test('should skip broadcast when event data has no roomCode', () => {
+    router.init();
+    
+    // Find a broadcast event handler (e.g., EVT_GAME_STARTED)
+    const gameStartedHandler = mockBus.on.mock.calls.find(
+      call => call[0] === EventTypes.EVT_GAME_STARTED
+    )[1];
+    
+    // Call with data that has no roomCode
+    gameStartedHandler({ someOtherData: 'test' });
+    
+    // Should not call io.to() or io.emit() for broadcast
+    expect(mockIO.to).not.toHaveBeenCalled();
+  });
 });

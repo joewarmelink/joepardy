@@ -19,17 +19,17 @@ describe('ScoreCalculator', () => {
 
   test('should award maximum points for answering instantly', () => {
     // answertime = 0 (instantly)
-    const points = calculator.calculate(0, timeToAnswer);
+    const points = calculator.calculate(0, timeToAnswer, true);
     expect(points).toBe(config.games.trivia.scoring.basePoints + config.games.trivia.scoring.speedBonusMax);
   });
 
   test('should award only base points if answering at the very last second', () => {
-    const points = calculator.calculate(timeToAnswer, timeToAnswer);
+    const points = calculator.calculate(timeToAnswer, timeToAnswer, true);
     expect(points).toBe(config.games.trivia.scoring.basePoints);
   });
 
   test('should award approximately half the bonus for answering halfway', () => {
-    const points = calculator.calculate(timeToAnswer / 2, timeToAnswer);
+    const points = calculator.calculate(timeToAnswer / 2, timeToAnswer, true);
     const expected = config.games.trivia.scoring.basePoints + (config.games.trivia.scoring.speedBonusMax / 2);
     expect(points).toBeCloseTo(expected);
   });
@@ -40,7 +40,7 @@ describe('ScoreCalculator', () => {
   });
 
   test('should handle edge case where time elapsed exceeds limit', () => {
-    const points = calculator.calculate(timeToAnswer + 5, timeToAnswer);
+    const points = calculator.calculate(timeToAnswer + 5, timeToAnswer, true);
     expect(points).toBe(config.games.trivia.scoring.basePoints);
   });
 });

@@ -60,17 +60,23 @@ describe('RoomManager', () => {
   test('should allow a player to join a room', async () => {
     const roomCode = 'JOIN';
     const player = { uuid: 'user-1', name: 'Alice' };
+    const socketId = 'socket-123';
     const initialState = { players: {} };
     
     mockRepository.getState.mockResolvedValue(initialState);
     mockRepository.saveState.mockResolvedValue(undefined);
 
-    const success = await roomManager.joinRoom(roomCode, player);
+    const success = await roomManager.joinRoom(roomCode, player, socketId);
     
     expect(success).toBe(true);
     expect(mockRepository.saveState).toHaveBeenCalledWith(roomCode, {
       players: {
-        'user-1': player
+        'user-1': {
+          uuid: 'user-1',
+          name: 'Alice',
+          role: 'player',
+          socketId: 'socket-123'
+        }
       }
     });
   });
@@ -120,5 +126,119 @@ describe('RoomManager', () => {
     mockRepository.getState.mockResolvedValue(null);
     const result = await roomManager.getPlayerByUuid('NONE', 'any');
     expect(result).toBeUndefined();
+  });
+
+  test('should mark a player as disconnected', async () => {
+    const roomCode = 'DISC';
+    const playerUuid = 'uuid-456';
+    const state = {
+      players: {
+        'uuid-456': { uuid: 'uuid-456', name: 'Charlie', socketId: 'socket-789' }
+      }
+    };
+
+    mockRepository.getState.mockResolvedValue(state);
+    mockRepository.saveState.mockResolvedValue(undefined);
+
+    const result = await roomManager.markPlayerDisconnected(roomCode, playerUuid);
+
+    expect(result).toBe(true);
+    expect(mockRepository.saveState).toHaveBeenCalledWith(roomCode, {
+      players: {
+        'uuid-456': { uuid: 'uuid-456', name: 'Charlie', socketId: null }
+      }
+    });
+  });
+
+  test('should return false when marking disconnection for non-existent room', async () => {
+    mockRepository.getState.mockResolvedValue(null);
+    const result = await roomManager.markPlayerDisconnected('NONE', 'uuid-123');
+    expect(result).toBe(false);
+  });
+
+  test('should return false when marking disconnection for non-existent player', async () => {
+    const state = { players: {} };
+    mockRepository.getState.mockResolvedValue(state);
+    const result = await roomManager.markPlayerDisconnected('TEST', 'uuid-999');
+    expect(result).toBe(false);
+  });
+
+  test('should update existing player on rejoin with new socketId', async () => {
+    const roomCode = 'REJN';
+    const playerUuid = 'uuid-100';
+    const state = {
+      players: {
+        'uuid-100': { uuid: 'uuid-100', name: 'OldName', role: 'player', socketId: null }
+      }
+    };
+
+    mockRepository.getState.mockResolvedValue(state);
+    mockRepository.saveState.mockResolvedValue(undefined);
+
+    const success = await roomManager.joinRoom(roomCode, { uuid: playerUuid, name: 'NewName' }, 'socket-new');
+
+    expect(success).toBe(true);
+    expect(mockRepository.saveState).toHaveBeenCalledWith(roomCode, {
+      players: {
+        'uuid-100': { uuid: 'uuid-100', name: 'NewName', role: 'player', socketId: 'socket-new' }
+      }
+    });
+  });
+
+  test('should assign default role of player when joining', async () => {
+    const roomCode = 'ROLE';
+    const player = { uuid: 'user-99', name: 'DefaultRole' };
+    const socketId = 'socket-999';
+    const initialState = { players: {} };
+
+    mockRepository.getState.mockResolvedValue(initialState);
+    mockRepository.saveState.mockResolvedValue(undefined);
+
+    await roomManager.joinRoom(roomCode, player, socketId);
+
+    expect(mockRepository.saveState).toHaveBeenCalledWith(roomCode, {
+      players: {
+        'user-99': {
+          uuid: 'user-99',
+          name: 'DefaultRole',
+          role: 'player',
+          socketId: 'socket-999'
+        }
+      }
+    });
+  });
+
+  test('should preserve custom role when joining', async () => {
+    const roomCode = 'HOST';
+    const player = { uuid: 'host-1', name: 'HostUser', role: 'host' };
+    const socketId = 'socket-host';
+    const initialState = { players: {} };
+
+    mockRepository.getState.mockResolvedValue(initialState);
+    mockRepository.saveState.mockResolvedValue(undefined);
+
+    await roomManager.joinRoom(roomCode, player, socketId);
+
+    expect(mockRepository.saveState).toHaveBeenCalledWith(roomCode, {
+      players: {
+        'host-1': {
+          uuid: 'host-1',
+          name: 'HostUser',
+          role: 'host',
+          socketId: 'socket-host'
+        }
+      }
+    });
+  });
+
+  test('should retrieve room state', async () => {
+    const roomCode = 'STAT';
+    const state = { players: {}, phase: 'PLAYING' };
+    mockRepository.getState.mockResolvedValue(state);
+
+    const result = await roomManager.getState(roomCode);
+
+    expect(result).toEqual(state);
+    expect(mockRepository.getState).toHaveBeenCalledWith(roomCode);
   });
 });

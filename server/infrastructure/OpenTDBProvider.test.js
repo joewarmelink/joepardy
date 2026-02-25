@@ -69,4 +69,29 @@ describe('OpenTDBProvider', () => {
 
     await expect(provider.getQuestions(1)).rejects.toThrow('OTDB API returned error code: 1');
   });
+
+  test('should handle empty or null values in _decodeHtml gracefully', async () => {
+    const mockApiResponse = {
+      response_code: 0,
+      results: [{
+        category: '',
+        type: 'multiple',
+        difficulty: 'easy',
+        question: 'Test Question',
+        correct_answer: 'Answer',
+        incorrect_answers: ['Wrong1', 'Wrong2', 'Wrong3']
+      }]
+    };
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse
+    });
+
+    const questions = await provider.getQuestions(1);
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].category).toBe('');
+    expect(questions[0].question).toBe('Test Question');
+  });
 });
